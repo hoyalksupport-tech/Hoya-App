@@ -122,9 +122,6 @@ main{padding:35px 0 62px}.view{display:none}.view.active{display:block}.section{
 <div class="modal-backdrop" id="modalBackdrop"><div class="modal" id="modalContent"></div></div>
 <div class="toast" id="toast"></div>
 
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script>
 /* =========================
    HOYA - Firebase-ready app
@@ -133,12 +130,13 @@ main{padding:35px 0 62px}.view{display:none}.view.active{display:block}.section{
    3) Create Firestore Database and publish firestore.rules.
    ========================= */
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
+  apiKey: "AIzaSyBDFdqHuhcXefNv804aox5E03jtJHWWD60",
+  authDomain: "soya-3a993.firebaseapp.com",
+  projectId: "soya-3a993",
+  storageBucket: "soya-3a993.firebasestorage.app",
+  messagingSenderId: "491848735946",
+  appId: "1:491848735946:web:aa721e4753b64511ae2833",
+  measurementId: "G-PTNB0RNKDN"
 };
 
 const $ = (s,root=document)=>root.querySelector(s);
@@ -248,52 +246,52 @@ async function shareBusiness(id){const b=allPublic().find(x=>String(x.id)===Stri
 function initEvents(){document.addEventListener("click",async e=>{const el=e.target.closest("[data-action],[data-page],[data-category],[data-detail],[data-edit],[data-pay],[data-toggle-open],[data-transport-status],[data-admin-approve],[data-admin-reject],[data-payment-approve],[data-payment-reject],[data-auth-tab],[data-admin-tab],[data-share]");if(!el)return;if(el.dataset.page){e.preventDefault();go(el.dataset.page);return}if(el.dataset.category){$("#filterCat").value=el.dataset.category;go("browse");renderBrowse();return}if(el.dataset.detail){detail(el.dataset.detail);return}if(el.dataset.edit){editBusiness(el.dataset.edit);return}if(el.dataset.pay){requestPayment(el.dataset.pay);return}if(el.dataset.toggleOpen){toggleOpen(el.dataset.toggleOpen);return}if(el.dataset.transportStatus){updateTransportModal(el.dataset.transportStatus);return}if(el.dataset.adminApprove){adminBusinessAction(el.dataset.adminApprove,"approved");return}if(el.dataset.adminReject){adminBusinessAction(el.dataset.adminReject,"rejected");return}if(el.dataset.paymentApprove){adminPaymentAction(el.dataset.paymentApprove,"approved");return}if(el.dataset.paymentReject){adminPaymentAction(el.dataset.paymentReject,"rejected");return}if(el.dataset.authTab){switchAuthTab(el.dataset.authTab);return}if(el.dataset.adminTab){$$("[data-admin-tab]").forEach(x=>x.classList.toggle("active",x===el));$("#adminTabContent").innerHTML=el.dataset.adminTab==="payments"?adminPaymentRows(state.paymentRequests):adminBusinessRows(state.adminBusinesses);return}if(el.dataset.share){shareBusiness(el.dataset.share);return}switch(el.dataset.action){case"home":go("home");break;case"search":searchNow();break;case"transport":$("#filterCat").value="transport";go("browse");renderBrowse();break;case"add-business":newBusiness();break;case"account":state.user?go("dashboard"):showAuth();break;case"close-modal":closeModal();break;case"demo-login":demoLogin();break;case"demo-admin":demoAdmin();break;case"demo-manager":demoManager();break;case"logout":logout();break;case"reset-filters":$("#filterQ").value="";$("#filterCat").value="";$("#filterDistrict").value="";$("#filterStatus").value="";renderBrowse();break;case"share-detail":shareBusiness(el.dataset.id);break}});$("#listingForm").addEventListener("submit",saveBusiness);$("#homeQ").addEventListener("keydown",e=>{if(e.key==="Enter")searchNow()});["filterQ","filterCat","filterDistrict","filterStatus"].forEach(id=>$("#"+id).addEventListener(id==="filterQ"?"input":"change",renderBrowse));$("#modalBackdrop").addEventListener("click",e=>{if(e.target.id==="modalBackdrop")closeModal()});document.addEventListener("submit",e=>{if(e.target.id==="authForm")registerOrLogin(e)})}
 async function initFirebase(){
  if(!isConfigReady()){showMode();return}
- if(!window.firebase){showMode();toast("Firebase SDK load වී නැහැ. Internet connection පරීක්ෂා කරන්න.");return}
  try{
-  const app=window.firebase.initializeApp(firebaseConfig);
-  state.auth=window.firebase.auth();
-  state.db=window.firebase.firestore();
+  const appSDK=await import("https://www.gstatic.com/firebasejs/13.4.0/firebase-app.js");
+  const authSDK=await import("https://www.gstatic.com/firebasejs/13.4.0/firebase-auth.js");
+  const fsSDK=await import("https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js");
 
-  // Compatibility helpers: lets this same index.html work when opened locally
-  // and still use Firebase Auth + Firestore after configuration.
+  const app=appSDK.initializeApp(firebaseConfig);
+  state.auth=authSDK.getAuth(app);
+  state.db=fsSDK.getFirestore(app);
+
   sdk.auth={
-   onAuthStateChanged:(auth,callback)=>auth.onAuthStateChanged(callback),
-   createUserWithEmailAndPassword:(auth,email,password)=>auth.createUserWithEmailAndPassword(email,password),
-   signInWithEmailAndPassword:(auth,email,password)=>auth.signInWithEmailAndPassword(email,password),
-   updateProfile:(user,profile)=>user.updateProfile(profile),
-   signOut:auth=>auth.signOut()
+   onAuthStateChanged:(auth,callback)=>authSDK.onAuthStateChanged(auth,callback),
+   createUserWithEmailAndPassword:(auth,email,password)=>authSDK.createUserWithEmailAndPassword(auth,email,password),
+   signInWithEmailAndPassword:(auth,email,password)=>authSDK.signInWithEmailAndPassword(auth,email,password),
+   updateProfile:(user,profile)=>authSDK.updateProfile(user,profile),
+   signOut:auth=>authSDK.signOut(auth)
   };
   sdk.fs={
-   collection:(db,path)=>db.collection(path),
-   doc:(db,path,id)=>db.collection(path).doc(id),
-   getDoc:ref=>ref.get(),
-   getDocs:ref=>ref.get(),
-   setDoc:(ref,data)=>ref.set(data),
-   addDoc:(ref,data)=>ref.add(data),
-   updateDoc:(ref,data)=>ref.update(data),
-   serverTimestamp:()=>window.firebase.firestore.FieldValue.serverTimestamp(),
-   where:(field,operator,value)=>({kind:"where",field,operator,value}),
-   limit:number=>({kind:"limit",number}),
-   query:(ref,...constraints)=>{
-    let q=ref;
-    for(const c of constraints){
-     if(c.kind==="where")q=q.where(c.field,c.operator,c.value);
-     if(c.kind==="limit")q=q.limit(c.number);
-    }
-    return q;
-   }
+   collection:(db,path)=>fsSDK.collection(db,path),
+   doc:(db,path,id)=>fsSDK.doc(db,path,id),
+   getDoc:ref=>fsSDK.getDoc(ref),
+   getDocs:ref=>fsSDK.getDocs(ref),
+   setDoc:(ref,data)=>fsSDK.setDoc(ref,data),
+   addDoc:(ref,data)=>fsSDK.addDoc(ref,data),
+   updateDoc:(ref,data)=>fsSDK.updateDoc(ref,data),
+   serverTimestamp:()=>fsSDK.serverTimestamp(),
+   where:(field,operator,value)=>fsSDK.where(field,operator,value),
+   limit:number=>fsSDK.limit(number),
+   query:(ref,...constraints)=>fsSDK.query(ref,...constraints)
   };
 
   state.firebase=true;
   showMode();
-  sdk.auth.onAuthStateChanged(state.auth,async user=>{
+  authSDK.onAuthStateChanged(state.auth,async user=>{
    state.user=user;
    if(user){
-    const ref=sdk.fs.doc(state.db,"users",user.uid);
-    let snap=await sdk.fs.getDoc(ref);
+    const ref=fsSDK.doc(state.db,"users",user.uid);
+    let snap=await fsSDK.getDoc(ref);
     if(!snap.exists()){
-     await sdk.fs.setDoc(ref,{displayName:user.displayName||"Business Owner",email:user.email||"",role:"owner",managedCategory:null,createdAt:sdk.fs.serverTimestamp()});
-     snap=await sdk.fs.getDoc(ref);
+     await fsSDK.setDoc(ref,{
+      displayName:user.displayName||"Business Owner",
+      email:user.email||"",
+      role:"owner",
+      managedCategory:null,
+      createdAt:fsSDK.serverTimestamp()
+     });
+     snap=await fsSDK.getDoc(ref);
     }
     state.profile=snap.data();
    }else{
@@ -303,15 +301,19 @@ async function initFirebase(){
     state.adminBusinesses=[];
     state.paymentRequests=[];
    }
-   try{await refreshData()}
-   catch(e){console.error(e);toast("Firebase දත්ත ලබාගැනීමේ ගැටලුවක්: "+e.message)}
+   try{
+    await refreshData();
+   }catch(e){
+    console.error(e);
+    toast("Firebase දත්ත ලබාගැනීමේ ගැටලුවක්: "+e.message);
+   }
    if($("#dashboard").classList.contains("active"))renderDashboard();
   });
  }catch(e){
   console.error(e);
   state.firebase=false;
   showMode();
-  toast("Firebase සම්බන්ධතාව අසාර්ථකයි. Config සහ Rules පරීක්ෂා කරන්න.");
+  toast("Firebase සම්බන්ධතාව අසාර්ථකයි. Config, Internet සහ Firestore Rules පරීක්ෂා කරන්න.");
  }
 }
 function init(){setCategoryOptions();initEvents();showMode();renderHome();initFirebase();const id=new URLSearchParams(location.search).get("business");if(id)setTimeout(()=>detail(id),500)}
