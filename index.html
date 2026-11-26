@@ -1,11 +1,42 @@
 <!DOCTYPE html>
-<html lang="si">
+<html lang="si-LK">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#10243d">
-<meta name="description" content="HOYA — හොයන හැමදේම එකම තැනකින්. ශ්‍රී ලංකාවේ ප්‍රවාහන, කඩසාප්පු, සැලෝන් සහ ප්‍රදේශීය සේවා පහසුවෙන් සොයාගන්න.">
-<title>HOYA | හොයන හැමදේම එකම තැනකින්</title>
+<meta name="application-name" content="HOYA">
+<meta name="description" content="HOYA යනු ශ්‍රී ලංකාවේ බස් මාර්ග හා වේලාවන්, කඩසාප්පු, සැලෝන්, ආපනශාලා සහ ප්‍රදේශීය සේවා දිස්ත්‍රික්ක අනුව සොයාගත හැකි online directory එකකි.">
+<meta name="robots" content="index,follow,max-image-preview:large">
+<title>HOYA Sri Lanka | බස් වේලාවන්, කඩසාප්පු, සැලෝන් සහ සේවා</title>
+<link rel="canonical" href="https://hoyalksupport-tech.github.io/Hoya-App/">
+<link rel="icon" type="image/png" href="https://hoyalksupport-tech.github.io/Hoya-App/hoya-logo.png">
+<link rel="apple-touch-icon" href="https://hoyalksupport-tech.github.io/Hoya-App/hoya-logo.png">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="si_LK">
+<meta property="og:site_name" content="HOYA">
+<meta property="og:title" content="HOYA Sri Lanka | බස් වේලාවන්, කඩසාප්පු, සැලෝන් සහ සේවා">
+<meta property="og:description" content="HOYA යනු ශ්‍රී ලංකාවේ බස් මාර්ග හා වේලාවන්, කඩසාප්පු, සැලෝන්, ආපනශාලා සහ ප්‍රදේශීය සේවා දිස්ත්‍රික්ක අනුව සොයාගත හැකි online directory එකකි.">
+<meta property="og:url" content="https://hoyalksupport-tech.github.io/Hoya-App/">
+<meta property="og:image" content="https://hoyalksupport-tech.github.io/Hoya-App/hoya-social-preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="HOYA Sri Lanka - find transport, shops, salons and local services">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="HOYA Sri Lanka | බස් වේලාවන්, කඩසාප්පු, සැලෝන් සහ සේවා">
+<meta name="twitter:description" content="HOYA යනු ශ්‍රී ලංකාවේ බස් මාර්ග හා වේලාවන්, කඩසාප්පු, සැලෝන්, ආපනශාලා සහ ප්‍රදේශීය සේවා දිස්ත්‍රික්ක අනුව සොයාගත හැකි online directory එකකි.">
+<meta name="twitter:image" content="https://hoyalksupport-tech.github.io/Hoya-App/hoya-social-preview.png">
+<script type="application/ld+json" id="websiteStructuredData">
+{
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": "HOYA",
+  "alternateName": "HOYA Sri Lanka",
+  "url": "https://hoyalksupport-tech.github.io/Hoya-App/",
+  "description": "HOYA යනු ශ්‍රී ලංකාවේ බස් මාර්ග හා වේලාවන්, කඩසාප්පු, සැලෝන්, ආපනශාලා සහ ප්‍රදේශීය සේවා දිස්ත්‍රික්ක අනුව සොයාගත හැකි online directory එකකි.",
+  "inLanguage": "si-LK"
+}
+</script>
+<script type="application/ld+json" id="businessStructuredData">{}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Noto+Sans+Sinhala:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -172,18 +203,75 @@ function isConfigReady(){return Object.values(firebaseConfig).every(v=>v && !Str
 function showMode(){const bar=$("#modeBar");if(state.firebase){bar.className="modebar cloud";bar.textContent="ONLINE MODE — Firebase Database සම්බන්ධයි. Approved ව්‍යාපාර පමණක් මහජන සෙවුමේ පෙන්වයි."}else{bar.className="modebar";bar.textContent="DEMO MODE — දැනට මෙම browser එකේ Demo දත්ත පමණයි. සැබෑ Online දත්ත සඳහා Firebase Config එක ඇතුළත් කරන්න."}}
 function go(id){$$(".view").forEach(v=>v.classList.remove("active"));$("#"+id).classList.add("active");$$("[data-page]").forEach(b=>b.classList.toggle("active",b.dataset.page===id));window.scrollTo({top:0,behavior:"smooth"});if(id==="browse")renderBrowse();if(id==="dashboard")renderDashboard()}
 function openModal(html){$("#modalContent").innerHTML=html;$("#modalBackdrop").style.display="flex"}
-function closeModal(){$("#modalBackdrop").style.display="none"}
+function closeModal(){
+ $("#modalBackdrop").style.display="none";
+ if(new URLSearchParams(location.search).has("business")){
+  const cleanUrl=new URL(location.href);
+  cleanUrl.searchParams.delete("business");
+  history.replaceState({}, "", cleanUrl.pathname+cleanUrl.search+cleanUrl.hash);
+ }
+ resetHomeSEO();
+}
 function localGet(key,fallback=[]){try{return JSON.parse(localStorage.getItem(key))??fallback}catch{return fallback}}
 function localSet(key,value){localStorage.setItem(key,JSON.stringify(value))}
 function localBusinesses(){return localGet("hoya_local_businesses",[])}
 function localPayments(){return localGet("hoya_local_payments",[])}
 function allPublic(){return state.firebase?state.publicBusinesses:DEMO.filter(x=>x.status==="approved").concat(localBusinesses().filter(x=>x.status==="approved"&&x.subscriptionStatus==="active"))}
 function setCategoryOptions(){const options=CATS.map(c=>`<option value="${c.id}">${c.name}</option>`).join("");$("#filterCat").innerHTML='<option value="">සියලු කාණ්ඩ</option>'+options;$("#fCategory").innerHTML='<option value="">කාණ්ඩය තෝරන්න</option>'+options;$("#categoryGrid").innerHTML=CATS.map(c=>`<button class="cat" data-category="${c.id}"><span class="cat-icon">${c.icon}</span><strong>${c.name}</strong><small>${c.sub}</small></button>`).join("")}
-function businessCard(b){const demo=b.isDemo===true;const status=b.category==="transport"?statusName(b.transportStatus):((b.isOpen===false)?"වසා ඇත":"විවෘතයි");const pillClass=b.category==="transport"?(b.transportStatus||"running"):(b.isOpen===false?"closed":"");return `<article class="card"><div class="cover">${b.coverImage?`<img src="${escapeHTML(b.coverImage)}" alt="">`:cat(b.category).icon}${demo?'<span class="tag">DEMO</span>':(b.verified?'<span class="tag verified">✓ VERIFIED</span>':'')}</div><div class="card-body"><div class="card-title-row"><div><h3>${escapeHTML(b.name)}</h3><div class="card-category">${escapeHTML(catName(b.category))}</div></div><span class="pill ${pillClass}">${escapeHTML(status)}</span></div><div class="card-meta"><span>📍 ${escapeHTML(b.town||b.district||"ශ්‍රී ලංකාව")}</span><span>${escapeHTML(b.district||"")}</span></div><p class="card-desc">${escapeHTML(b.description||"")}</p><div class="card-actions"><button class="btn btn-dark" data-detail="${escapeHTML(b.id)}">විස්තර බලන්න</button><button class="btn btn-light" data-share="${escapeHTML(b.id)}">↗ Share</button></div></div></article>`}
+function businessCard(b){const demo=b.isDemo===true;const status=b.category==="transport"?statusName(b.transportStatus):((b.isOpen===false)?"වසා ඇත":"විවෘතයි");const pillClass=b.category==="transport"?(b.transportStatus||"running"):(b.isOpen===false?"closed":"");return `<article class="card"><div class="cover">${b.coverImage?`<img src="${escapeHTML(b.coverImage)}" alt="">`:cat(b.category).icon}${demo?'<span class="tag">DEMO</span>':(b.verified?'<span class="tag verified">✓ VERIFIED</span>':'')}</div><div class="card-body"><div class="card-title-row"><div><h3>${escapeHTML(b.name)}</h3><div class="card-category">${escapeHTML(catName(b.category))}</div></div><span class="pill ${pillClass}">${escapeHTML(status)}</span></div><div class="card-meta"><span>📍 ${escapeHTML(b.town||b.district||"ශ්‍රී ලංකාව")}</span><span>${escapeHTML(b.district||"")}</span></div><p class="card-desc">${escapeHTML(b.description||"")}</p><div class="card-actions"><a class="btn btn-dark" href="?business=${encodeURIComponent(b.id)}" data-detail="${escapeHTML(b.id)}">විස්තර බලන්න</a><button class="btn btn-light" data-share="${escapeHTML(b.id)}">↗ Share</button></div></div></article>`}
 function renderHome(){const list=allPublic();$("#featuredGrid").innerHTML=list.slice(0,3).map(businessCard).join("")||'<div class="empty">තවම අනුමත ව්‍යාපාර නැහැ. Demo mode එකේ උදාහරණ පමණක් පෙන්විය හැකියි.</div>';const buses=list.filter(b=>b.category==="transport");$("#transportPanel").innerHTML=buses.length?buses.map(b=>`<div class="transport-row"><div class="route"><strong>${escapeHTML(b.name)}</strong><small>${escapeHTML(b.routeOrigin||"")} → ${escapeHTML(b.routeDestination||"")}</small></div><div class="transport-cell"><small>ඊළඟ වේලාව</small><strong>${escapeHTML((b.times||[])[0]||"—")}</strong></div><div class="transport-cell"><small>අද තත්ත්වය</small><strong>${escapeHTML(statusName(b.transportStatus))}</strong></div><span class="status ${escapeHTML(b.transportStatus||"running")}">${escapeHTML(statusName(b.transportStatus))}</span></div>`).join(""):'<div class="empty">තවම ප්‍රවාහන තොරතුරු නැහැ.</div>'}
 function renderBrowse(){const q=($("#filterQ").value||"").toLowerCase().trim(),c=$("#filterCat").value,d=$("#filterDistrict").value,s=$("#filterStatus").value;let list=allPublic().filter(b=>{const hay=[b.name,b.description,b.town,b.district,b.routeOrigin,b.routeDestination].join(" ").toLowerCase();return(!q||hay.includes(q))&&(!c||b.category===c)&&(!d||b.district===d)&&(!s||(s==="open"?b.isOpen!==false:s==="closed"?b.isOpen===false:(b.category==="transport"&&b.transportStatus==="running")))});$("#resultsLine").textContent=`ප්‍රතිඵල ${list.length}ක්`;$("#browseGrid").innerHTML=list.length?list.map(businessCard).join(""):'<div class="empty">ඔබගේ සෙවුමට ගැළපෙන අනුමත ව්‍යාපාර හමු නොවීය.</div>'}
 function searchNow(){const q=$("#homeQ").value;$("#filterQ").value=q;$("#filterDistrict").value=$("#homeDistrict").value;go("browse");renderBrowse()}
-function detail(id){const b=allPublic().find(x=>String(x.id)===String(id))||state.ownedBusinesses.find(x=>String(x.id)===String(id))||state.adminBusinesses.find(x=>String(x.id)===String(id));if(!b)return;const phone=b.phone?`<a href="tel:${escapeHTML(b.phone)}">${escapeHTML(b.phone)}</a>`:"ලබාදී නැත";const wa=b.whatsapp?`<a target="_blank" rel="noopener" href="https://wa.me/${b.whatsapp.replace(/\D/g,"")}">${escapeHTML(b.whatsapp)}</a>`:"ලබාදී නැත";const map=b.address?`<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((b.address||"")+" "+(b.town||"")+" Sri Lanka")}">Google Maps හි බලන්න</a>`:"—";const times=(b.times||[]).map(t=>`<tr><td>${escapeHTML(t)}</td><td>${escapeHTML(b.routeOrigin||"")}</td><td>${escapeHTML(b.routeDestination||"")}</td></tr>`).join("");openModal(`<button class="modal-close" data-action="close-modal">✕</button><div class="detail-top"><div><span class="pill ${b.isDemo?"demo":(b.status==="pending"?"pending":"")}">${b.isDemo?"DEMO":(b.status==="pending"?"අනුමැතිය බලාපොරොත්තුවෙන්":"අනුමතයි")}</span><h1 style="font-size:21px;color:var(--navy);margin:10px 0 4px">${cat(b.category).icon} ${escapeHTML(b.name)}</h1><div class="card-category">${escapeHTML(catName(b.category))} · ${escapeHTML(b.town||"")}, ${escapeHTML(b.district||"")}</div><p class="detail-desc">${escapeHTML(b.description||"")}</p></div></div><div class="detail-grid"><div class="info"><small>දුරකථනය</small><strong>${phone}</strong></div><div class="info"><small>WhatsApp</small><strong>${wa}</strong></div><div class="info"><small>ලිපිනය</small><strong>${escapeHTML(b.address||b.town||"—")}</strong></div><div class="info"><small>විවෘත වේලාවන්</small><strong>${escapeHTML(b.hours||"—")}</strong></div><div class="info"><small>ස්ථානය</small><strong>${map}</strong></div><div class="info"><small>අද තත්ත්වය</small><strong>${b.category==="transport"?escapeHTML(statusName(b.transportStatus)):b.isOpen===false?"වසා ඇත":"විවෘතයි"}</strong></div></div>${b.category==="transport"?`<h3 style="font-size:13px;color:var(--navy);margin:20px 0 4px">🚌 මාර්ගය සහ වේලාවන්</h3><p class="detail-desc">${escapeHTML(b.routeOrigin||"")} → ${escapeHTML(b.routeDestination||"")} ${b.vehicle?" · "+escapeHTML(b.vehicle):""}</p><div class="table-wrap"><table><thead><tr><th>පිටත්වන වේලාව</th><th>ආරම්භය</th><th>ගමනාන්තය</th></tr></thead><tbody>${times||'<tr><td colspan="3">වේලාවන් ඇතුළත් කර නැත.</td></tr>'}</tbody></table></div>`:""}${b.isDemo?'<div class="notice">මෙය Demo තොරතුරකි. සැබෑ ව්‍යාපාරයක් හෝ බස් කාලසටහනක් නොවේ.</div>':""}<div class="form-actions">${b.phone?`<a class="btn btn-primary" href="tel:${escapeHTML(b.phone)}">☎ අමතන්න</a>`:""}${b.whatsapp?`<a class="btn btn-soft" target="_blank" rel="noopener" href="https://wa.me/${b.whatsapp.replace(/\D/g,"")}">WhatsApp</a>`:""}<button class="btn btn-light" data-action="share-detail" data-id="${escapeHTML(b.id)}">Share Profile</button></div>`)}
+const HOYA_SITE_URL="https://hoyalksupport-tech.github.io/Hoya-App/";
+const HOYA_HOME_TITLE="HOYA Sri Lanka | බස් වේලාවන්, කඩසාප්පු, සැලෝන් සහ සේවා";
+const HOYA_HOME_DESCRIPTION="HOYA යනු ශ්‍රී ලංකාවේ බස් මාර්ග හා වේලාවන්, කඩසාප්පු, සැලෝන්, ආපනශාලා සහ ප්‍රදේශීය සේවා දිස්ත්‍රික්ක අනුව සොයාගත හැකි online directory එකකි.";
+let initialBusinessQueryHandled=false;
+function setMeta(selector,attribute,value){
+ const node=document.querySelector(selector);
+ if(node)node.setAttribute(attribute,value);
+}
+function updateBusinessSEO(b){
+ const place=[b.town,b.district,"Sri Lanka"].filter(Boolean).join(", ");
+ const title=`${b.name} | ${catName(b.category)} in ${place} | HOYA`;
+ const desc=(`${b.name}. ${b.description||catName(b.category)}. ${place}. HOYA හි දුරකථන අංක, විවෘත තත්ත්වය සහ සේවා විස්තර බලන්න.`).slice(0,300);
+ const url=new URL(location.href);url.searchParams.set("business",b.id);
+ document.title=title;
+ setMeta('meta[name="description"]',"content",desc);
+ setMeta('meta[property="og:title"]',"content",title);
+ setMeta('meta[property="og:description"]',"content",desc);
+ setMeta('meta[property="og:url"]',"content",url.toString());
+ const canonical=document.querySelector('link[rel="canonical"]');
+ if(canonical)canonical.href=url.toString();
+ const schema={
+  "@context":"https://schema.org",
+  "@type":"LocalBusiness",
+  "name":b.name,
+  "description":b.description||catName(b.category),
+  "url":url.toString(),
+  "areaServed":{"@type":"Country","name":"Sri Lanka"}
+ };
+ if(b.phone)schema.telephone=b.phone;
+ if(b.address||b.town||b.district){
+  schema.address={"@type":"PostalAddress","addressCountry":"LK"};
+  if(b.address)schema.address.streetAddress=b.address;
+  if(b.town)schema.address.addressLocality=b.town;
+  if(b.district)schema.address.addressRegion=b.district;
+ }
+ const structured=document.getElementById("businessStructuredData");
+ if(structured)structured.textContent=JSON.stringify(schema).replace(/</g,"\\u003c");
+}
+function resetHomeSEO(){
+ document.title=HOYA_HOME_TITLE;
+ setMeta('meta[name="description"]',"content",HOYA_HOME_DESCRIPTION);
+ setMeta('meta[property="og:title"]',"content",HOYA_HOME_TITLE);
+ setMeta('meta[property="og:description"]',"content",HOYA_HOME_DESCRIPTION);
+ setMeta('meta[property="og:url"]',"content",HOYA_SITE_URL);
+ const canonical=document.querySelector('link[rel="canonical"]');
+ if(canonical)canonical.href=HOYA_SITE_URL;
+ const structured=document.getElementById("businessStructuredData");
+ if(structured)structured.textContent="{}";
+}
+function detail(id){const b=allPublic().find(x=>String(x.id)===String(id))||state.ownedBusinesses.find(x=>String(x.id)===String(id))||state.adminBusinesses.find(x=>String(x.id)===String(id));if(!b)return;updateBusinessSEO(b);const phone=b.phone?`<a href="tel:${escapeHTML(b.phone)}">${escapeHTML(b.phone)}</a>`:"ලබාදී නැත";const wa=b.whatsapp?`<a target="_blank" rel="noopener" href="https://wa.me/${b.whatsapp.replace(/\D/g,"")}">${escapeHTML(b.whatsapp)}</a>`:"ලබාදී නැත";const map=b.address?`<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((b.address||"")+" "+(b.town||"")+" Sri Lanka")}">Google Maps හි බලන්න</a>`:"—";const times=(b.times||[]).map(t=>`<tr><td>${escapeHTML(t)}</td><td>${escapeHTML(b.routeOrigin||"")}</td><td>${escapeHTML(b.routeDestination||"")}</td></tr>`).join("");openModal(`<button class="modal-close" data-action="close-modal">✕</button><div class="detail-top"><div><span class="pill ${b.isDemo?"demo":(b.status==="pending"?"pending":"")}">${b.isDemo?"DEMO":(b.status==="pending"?"අනුමැතිය බලාපොරොත්තුවෙන්":"අනුමතයි")}</span><h1 style="font-size:21px;color:var(--navy);margin:10px 0 4px">${cat(b.category).icon} ${escapeHTML(b.name)}</h1><div class="card-category">${escapeHTML(catName(b.category))} · ${escapeHTML(b.town||"")}, ${escapeHTML(b.district||"")}</div><p class="detail-desc">${escapeHTML(b.description||"")}</p></div></div><div class="detail-grid"><div class="info"><small>දුරකථනය</small><strong>${phone}</strong></div><div class="info"><small>WhatsApp</small><strong>${wa}</strong></div><div class="info"><small>ලිපිනය</small><strong>${escapeHTML(b.address||b.town||"—")}</strong></div><div class="info"><small>විවෘත වේලාවන්</small><strong>${escapeHTML(b.hours||"—")}</strong></div><div class="info"><small>ස්ථානය</small><strong>${map}</strong></div><div class="info"><small>අද තත්ත්වය</small><strong>${b.category==="transport"?escapeHTML(statusName(b.transportStatus)):b.isOpen===false?"වසා ඇත":"විවෘතයි"}</strong></div></div>${b.category==="transport"?`<h3 style="font-size:13px;color:var(--navy);margin:20px 0 4px">🚌 මාර්ගය සහ වේලාවන්</h3><p class="detail-desc">${escapeHTML(b.routeOrigin||"")} → ${escapeHTML(b.routeDestination||"")} ${b.vehicle?" · "+escapeHTML(b.vehicle):""}</p><div class="table-wrap"><table><thead><tr><th>පිටත්වන වේලාව</th><th>ආරම්භය</th><th>ගමනාන්තය</th></tr></thead><tbody>${times||'<tr><td colspan="3">වේලාවන් ඇතුළත් කර නැත.</td></tr>'}</tbody></table></div>`:""}${b.isDemo?'<div class="notice">මෙය Demo තොරතුරකි. සැබෑ ව්‍යාපාරයක් හෝ බස් කාලසටහනක් නොවේ.</div>':""}<div class="form-actions">${b.phone?`<a class="btn btn-primary" href="tel:${escapeHTML(b.phone)}">☎ අමතන්න</a>`:""}${b.whatsapp?`<a class="btn btn-soft" target="_blank" rel="noopener" href="https://wa.me/${b.whatsapp.replace(/\D/g,"")}">WhatsApp</a>`:""}<button class="btn btn-light" data-action="share-detail" data-id="${escapeHTML(b.id)}">Share Profile</button></div>`)}
 function showAuth(){openModal(`<button class="modal-close" data-action="close-modal">✕</button><h2>HOYA Account</h2><p>ව්‍යාපාරයක් එක් කිරීමට හෝ ඔබේ තොරතුරු යාවත්කාලීන කිරීමට Login වන්න.</p><div class="tabs"><button class="tab active" data-auth-tab="login">Login</button><button class="tab" data-auth-tab="register">නව ගිණුමක්</button></div><form id="authForm"><div class="field" id="nameField" style="display:none"><label>ඔබේ නම</label><input class="control" id="authName" autocomplete="name"></div><div class="field" style="margin-top:10px"><label>Email</label><input class="control" id="authEmail" type="email" required autocomplete="email"></div><div class="field" style="margin-top:10px"><label>Password</label><input class="control" id="authPassword" type="password" required minlength="6" autocomplete="current-password"></div><div class="form-actions"><button class="btn btn-primary" type="submit" id="authSubmit">Login</button></div></form>${!state.firebase?'<div class="notice">Demo Mode: Firebase Config එක ඇතුළත් කර නැති නිසා සැබෑ Login එක තවම ක්‍රියාත්මක නැහැ. Preview එක පරීක්ෂා කිරීමට Demo Owner ලෙස ඉදිරියට යන්න.</div><div class="form-actions"><button class="btn btn-dark" data-action="demo-login">Demo Owner ලෙස යන්න</button><button class="btn btn-light" data-action="demo-manager">Demo Transport Manager</button><button class="btn btn-light" data-action="demo-admin">Demo Admin ලෙස යන්න</button></div>':""}`);state.authTab="login"}
 function switchAuthTab(tab){state.authTab=tab;$$("[data-auth-tab]").forEach(x=>x.classList.toggle("active",x.dataset.authTab===tab));$("#nameField").style.display=tab==="register"?"block":"none";$("#authSubmit").textContent=tab==="register"?"ගිණුමක් සාදන්න":"Login";$("#authPassword").autocomplete=tab==="register"?"new-password":"current-password"}
 function newBusiness(){if(!state.user){showAuth();return}state.editingId=null;$("#listingForm").reset();$("#formTitle").textContent="ව්‍යාපාරයක් එක් කරන්න";$("#transportFields").style.display="none";go("form")}
@@ -223,6 +311,11 @@ async function refreshData(){
  }
  renderHome();
  if($("#browse").classList.contains("active"))renderBrowse();
+ const deepLinkId=new URLSearchParams(location.search).get("business");
+ if(deepLinkId&&!initialBusinessQueryHandled&&allPublic().some(b=>String(b.id)===String(deepLinkId))){
+  initialBusinessQueryHandled=true;
+  detail(deepLinkId);
+ }
 }
 function renderDashboard(){const el=$("#dashboardContent");if(!state.user){el.innerHTML=`<div style="text-align:center;padding:24px"><h2>HOYA Account</h2><p style="font-size:10px;color:var(--muted)">ව්‍යාපාරයක් එක් කිරීමට Login හෝ Register වන්න.</p><button class="btn btn-primary" data-action="account">Login / Register</button></div>`;return}if(state.profile?.role==="admin"){renderAdminDashboard();return}if(state.profile?.role==="manager"){renderManagerDashboard();return}const arr=state.ownedBusinesses;const active=arr.filter(b=>b.status==="approved"&&b.subscriptionStatus==="active").length;el.innerHTML=`<div class="dashboard-top"><div><span class="pill">BUSINESS OWNER</span><h2>ආයුබෝවන්, ${escapeHTML(state.profile?.displayName||state.user.email||"Owner")}</h2><p>${escapeHTML(state.user.email||"")}</p></div><div class="form-actions"><button class="btn btn-primary" data-action="add-business">+ ව්‍යාපාරයක් එක් කරන්න</button><button class="btn btn-light" data-action="logout">Logout</button></div></div><div class="stats"><div class="stat"><small>ඔබේ ව්‍යාපාර</small><strong>${arr.length}</strong></div><div class="stat"><small>අනුමත / Active</small><strong>${active}</strong></div><div class="stat"><small>අනුමැතිය බලාපොරොත්තුවෙන්</small><strong>${arr.filter(b=>b.status==="pending").length}</strong></div><div class="stat"><small>Payment Requests</small><strong>${state.paymentRequests.length}</strong></div></div><h3 style="font-size:12px;color:var(--navy)">ඔබේ ව්‍යාපාර කළමනාකරණය</h3>${arr.length?arr.map(b=>`<div class="manage-item"><div><strong>${escapeHTML(b.name)}</strong><small>${escapeHTML(catName(b.category))} · ${escapeHTML(b.town||b.district||"")} · ${b.status==="approved"?"අනුමතයි":b.status==="rejected"?"ප්‍රතික්ෂේපයි":"අනුමැතිය බලාපොරොත්තුවෙන්"} · Subscription: ${escapeHTML(b.subscriptionStatus||"pending")}</small></div><div class="manage-actions"><button class="btn btn-light" data-edit="${escapeHTML(b.id)}">Edit</button><button class="btn btn-soft" data-toggle-open="${escapeHTML(b.id)}">${b.isOpen===false?"වසා ඇත":"විවෘතයි"} / වෙනස් කරන්න</button>${b.category==="transport"?`<button class="btn btn-light" data-transport-status="${escapeHTML(b.id)}">Transport Update</button>`:""}<button class="btn btn-primary" data-pay="${escapeHTML(b.id)}">රු.500 ගෙවීම</button></div></div>`).join(""):'<div class="empty">ඔබ තවම ව්‍යාපාරයක් එක් කර නැහැ.</div>'}<h3 style="font-size:12px;color:var(--navy);margin-top:22px">ගෙවීම් තත්ත්වය</h3>${state.paymentRequests.length?state.paymentRequests.map(p=>`<div class="manage-item"><div><strong>${escapeHTML(p.businessName||"Business")} — රු.${p.amount||500}</strong><small>${escapeHTML(p.method||"")} · Ref: ${escapeHTML(p.reference||"")}</small></div><span class="pill ${p.status==="approved"?"":"pending"}">${p.status==="approved"?"Approved":p.status==="rejected"?"Rejected":"Pending"}</span></div>`).join(""):'<p style="font-size:9px;color:var(--muted)">තවම Payment Request නැහැ.</p>'}<div class="notice">රු.500 මාසික ගාස්තුව සඳහා Payment Reference එකක් යවා Admin තහවුරු කිරීම බලාපොරොත්තු වන්න. මෙම Starter Version එකේ Payment Gateway Auto-charge සම්බන්ධ කර නැත.</div>`}
 function renderManagerDashboard(){
@@ -243,7 +336,14 @@ async function demoLogin(){state.user={uid:"local-demo-owner",email:"demo-owner@
 async function demoManager(){state.user={uid:"local-demo-transport-manager",email:"demo-transport@hoya.local",displayName:"Demo Transport Manager"};state.profile={role:"manager",managedCategory:"transport",displayName:"Demo Transport Manager"};closeModal();await refreshData();go("dashboard");toast("Demo Transport Manager ලෙස ඇතුළු වුණා. Demo Mode පමණි.")}
 async function demoAdmin(){state.user={uid:"local-demo-admin",email:"demo-admin@hoya.local",displayName:"Demo Admin"};state.profile={role:"admin",displayName:"Demo Admin"};closeModal();await refreshData();go("dashboard");toast("Demo Admin ලෙස ඇතුළු වුණා. Demo Mode පමණි.")}
 async function shareBusiness(id){const b=allPublic().find(x=>String(x.id)===String(id));const url=new URL(location.href);url.searchParams.set("business",id);const text=b?`${b.name} - HOYA`:"HOYA";try{if(navigator.share)await navigator.share({title:text,url:url.toString()});else{await navigator.clipboard.writeText(url.toString());toast("Business link එක Copy කළා.")}}catch(e){}}
-function initEvents(){document.addEventListener("click",async e=>{const el=e.target.closest("[data-action],[data-page],[data-category],[data-detail],[data-edit],[data-pay],[data-toggle-open],[data-transport-status],[data-admin-approve],[data-admin-reject],[data-payment-approve],[data-payment-reject],[data-auth-tab],[data-admin-tab],[data-share]");if(!el)return;if(el.dataset.page){e.preventDefault();go(el.dataset.page);return}if(el.dataset.category){$("#filterCat").value=el.dataset.category;go("browse");renderBrowse();return}if(el.dataset.detail){detail(el.dataset.detail);return}if(el.dataset.edit){editBusiness(el.dataset.edit);return}if(el.dataset.pay){requestPayment(el.dataset.pay);return}if(el.dataset.toggleOpen){toggleOpen(el.dataset.toggleOpen);return}if(el.dataset.transportStatus){updateTransportModal(el.dataset.transportStatus);return}if(el.dataset.adminApprove){adminBusinessAction(el.dataset.adminApprove,"approved");return}if(el.dataset.adminReject){adminBusinessAction(el.dataset.adminReject,"rejected");return}if(el.dataset.paymentApprove){adminPaymentAction(el.dataset.paymentApprove,"approved");return}if(el.dataset.paymentReject){adminPaymentAction(el.dataset.paymentReject,"rejected");return}if(el.dataset.authTab){switchAuthTab(el.dataset.authTab);return}if(el.dataset.adminTab){$$("[data-admin-tab]").forEach(x=>x.classList.toggle("active",x===el));$("#adminTabContent").innerHTML=el.dataset.adminTab==="payments"?adminPaymentRows(state.paymentRequests):adminBusinessRows(state.adminBusinesses);return}if(el.dataset.share){shareBusiness(el.dataset.share);return}switch(el.dataset.action){case"home":go("home");break;case"search":searchNow();break;case"transport":$("#filterCat").value="transport";go("browse");renderBrowse();break;case"add-business":newBusiness();break;case"account":state.user?go("dashboard"):showAuth();break;case"close-modal":closeModal();break;case"demo-login":demoLogin();break;case"demo-admin":demoAdmin();break;case"demo-manager":demoManager();break;case"logout":logout();break;case"reset-filters":$("#filterQ").value="";$("#filterCat").value="";$("#filterDistrict").value="";$("#filterStatus").value="";renderBrowse();break;case"share-detail":shareBusiness(el.dataset.id);break}});$("#listingForm").addEventListener("submit",saveBusiness);$("#homeQ").addEventListener("keydown",e=>{if(e.key==="Enter")searchNow()});["filterQ","filterCat","filterDistrict","filterStatus"].forEach(id=>$("#"+id).addEventListener(id==="filterQ"?"input":"change",renderBrowse));$("#modalBackdrop").addEventListener("click",e=>{if(e.target.id==="modalBackdrop")closeModal()});document.addEventListener("submit",e=>{if(e.target.id==="authForm")registerOrLogin(e)})}
+function initEvents(){document.addEventListener("click",async e=>{const el=e.target.closest("[data-action],[data-page],[data-category],[data-detail],[data-edit],[data-pay],[data-toggle-open],[data-transport-status],[data-admin-approve],[data-admin-reject],[data-payment-approve],[data-payment-reject],[data-auth-tab],[data-admin-tab],[data-share]");if(!el)return;if(el.dataset.page){e.preventDefault();go(el.dataset.page);return}if(el.dataset.category){$("#filterCat").value=el.dataset.category;go("browse");renderBrowse();return}if(el.dataset.detail){
+ e.preventDefault();
+ const detailUrl=new URL(location.href);
+ detailUrl.searchParams.set("business",el.dataset.detail);
+ history.pushState({}, "", detailUrl.pathname+detailUrl.search+detailUrl.hash);
+ detail(el.dataset.detail);
+ return
+}if(el.dataset.edit){editBusiness(el.dataset.edit);return}if(el.dataset.pay){requestPayment(el.dataset.pay);return}if(el.dataset.toggleOpen){toggleOpen(el.dataset.toggleOpen);return}if(el.dataset.transportStatus){updateTransportModal(el.dataset.transportStatus);return}if(el.dataset.adminApprove){adminBusinessAction(el.dataset.adminApprove,"approved");return}if(el.dataset.adminReject){adminBusinessAction(el.dataset.adminReject,"rejected");return}if(el.dataset.paymentApprove){adminPaymentAction(el.dataset.paymentApprove,"approved");return}if(el.dataset.paymentReject){adminPaymentAction(el.dataset.paymentReject,"rejected");return}if(el.dataset.authTab){switchAuthTab(el.dataset.authTab);return}if(el.dataset.adminTab){$$("[data-admin-tab]").forEach(x=>x.classList.toggle("active",x===el));$("#adminTabContent").innerHTML=el.dataset.adminTab==="payments"?adminPaymentRows(state.paymentRequests):adminBusinessRows(state.adminBusinesses);return}if(el.dataset.share){shareBusiness(el.dataset.share);return}switch(el.dataset.action){case"home":go("home");break;case"search":searchNow();break;case"transport":$("#filterCat").value="transport";go("browse");renderBrowse();break;case"add-business":newBusiness();break;case"account":state.user?go("dashboard"):showAuth();break;case"close-modal":closeModal();break;case"demo-login":demoLogin();break;case"demo-admin":demoAdmin();break;case"demo-manager":demoManager();break;case"logout":logout();break;case"reset-filters":$("#filterQ").value="";$("#filterCat").value="";$("#filterDistrict").value="";$("#filterStatus").value="";renderBrowse();break;case"share-detail":shareBusiness(el.dataset.id);break}});$("#listingForm").addEventListener("submit",saveBusiness);$("#homeQ").addEventListener("keydown",e=>{if(e.key==="Enter")searchNow()});["filterQ","filterCat","filterDistrict","filterStatus"].forEach(id=>$("#"+id).addEventListener(id==="filterQ"?"input":"change",renderBrowse));$("#modalBackdrop").addEventListener("click",e=>{if(e.target.id==="modalBackdrop")closeModal()});document.addEventListener("submit",e=>{if(e.target.id==="authForm")registerOrLogin(e)})}
 async function initFirebase(){
  if(!isConfigReady()){showMode();return}
  try{
@@ -314,9 +414,14 @@ async function initFirebase(){
   state.firebase=false;
   showMode();
   toast("Firebase සම්බන්ධතාව අසාර්ථකයි. Config, Internet සහ Firestore Rules පරීක්ෂා කරන්න.");
+  try{await refreshData()}catch(loadError){console.error(loadError)}
  }
 }
-function init(){setCategoryOptions();initEvents();showMode();renderHome();initFirebase();const id=new URLSearchParams(location.search).get("business");if(id)setTimeout(()=>detail(id),500)}
+function init(){setCategoryOptions();initEvents();showMode();renderHome();initFirebase();}
+window.addEventListener("popstate",()=>{
+ const id=new URLSearchParams(location.search).get("business");
+ if(id){detail(id)}else{closeModal();resetHomeSEO()}
+});
 init();
 </script>
 </body>

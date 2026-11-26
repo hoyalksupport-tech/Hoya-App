@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://hoyalksupport-tech.github.io/Hoya-App/sitemap.xml
