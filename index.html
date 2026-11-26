@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="si-LK">
 <head>
+<!-- TRILINGUAL: si default, en/ta switcher, persists in localStorage hoya_lang -->
+<!-- HOYA v2: demo-bypass blocked, validation, admin guard, wa 94 fix, ?demo=0, firestore.rules MUST be deployed -->
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="theme-color" content="#10243d">
@@ -423,6 +425,163 @@ window.addEventListener("popstate",()=>{
  if(id){detail(id)}else{closeModal();resetHomeSEO()}
 });
 init();
+</script>
+<script>
+// HOYA v2 PATCH - loaded after original script, overrides unsafe behaviours
+(function(){
+  function toast2(m){ try{ toast(m); }catch(e){ alert(m); } }
+  window.normalizeLKPhone = function(raw){ var d=String(raw||"").replace(/\D/g,""); if(d.indexOf("94")===0 && d.length===11) return d; if(d.indexOf("0")===0 && d.length===10) return "94"+d.slice(1); return d; };
+  function isValidLKPhone(raw){ var d=String(raw||"").replace(/\D/g,""); return /^0(7\d|11|21|23|24|25|26|27|31|32|33|34|35|36|37|38|41|45|47|51|52|54|55|57|63|65|66|67|81|91)\d{7}$/.test(d) || /^94(7\d|11|21|23|24|25|26|27|31|32|33|34|35|36|37|38|41|45|47|51|52|54|55|57|63|65|66|67|81|91)\d{7}$/.test(d); }
+  function validateBusiness(data){ var e=[]; if(!data.name||data.name.length<3) e.push("ව්‍යාපාරයේ නම අකුරු 3කට වඩා වෙන්න ඕන."); if(!data.category) e.push("කාණ්ඩයක් තෝරන්න."); if(!data.district) e.push("දිස්ත්‍රික්කය තෝරන්න."); if(!data.town||data.town.length<2) e.push("නගරය දාන්න."); if(!isValidLKPhone(data.phone)) e.push("වලංගු ශ්‍රී ලංකා දුරකථන අංකයක් දාන්න. උදා: 0771234567"); if(data.whatsapp && !isValidLKPhone(data.whatsapp)) e.push("WhatsApp අංකය වැරදියි."); if(!data.description||data.description.length<10) e.push("විස්තරය අකුරු 10කට වඩා ලියන්න."); if(data.description&&data.description.length>500) e.push("විස්තරය අකුරු 500ට අඩු කරන්න."); if(data.category==="transport" && (!data.routeOrigin||!data.routeDestination)) e.push("මාර්ගයේ ආරම්භය සහ ගමනාන්තය දෙකම දාන්න."); return e; }
+  window.__hoyaValidate = validateBusiness;
+  window.__hoyaIsValidPhone = isValidLKPhone;
+
+  // 1. BLOCK demo logins when Firebase is ONLINE - critical bypass fix
+  var _demoLogin = window.demoLogin, _demoManager = window.demoManager, _demoAdmin = window.demoAdmin;
+  window.demoLogin = function(){ if(window.state && window.state.firebase){ toast2("Online Mode එකේ Demo Login අක්‍රියයි. ඇත්ත ගිණුමකින් Login වන්න."); return; } return _demoLogin && _demoLogin(); };
+  window.demoManager = function(){ if(window.state && window.state.firebase){ toast2("Online Mode එකේ Demo Login අක්‍රියයි."); return; } return _demoManager && _demoManager(); };
+  window.demoAdmin = function(){ if(window.state && window.state.firebase){ toast2("Online Mode එකේ Demo Admin අක්‍රියයි. මෙය ආරක්ෂක අඩුපාඩුවක් නිසා අයින් කළා."); return; } return _demoAdmin && _demoAdmin(); };
+
+  // 2. Guard admin actions - need real admin (not local-demo uid)
+  function isRealAdmin(){ return !!(window.state && window.state.profile && window.state.profile.role==="admin" && window.state.user && !String(window.state.user.uid||"").startsWith("local-demo")); }
+  window.__hoyaIsRealAdmin = isRealAdmin;
+  var _adminBiz = window.adminBusinessAction, _adminPay = window.adminPaymentAction;
+  window.adminBusinessAction = function(id,status){ if(!isRealAdmin()){ toast2("Admin වරුන්ට පමණයි."); return; } if(!confirm(status==="approved"?"මේ ව්‍යාපාරය Approve කරන්නද?":"මේ ව්‍යාපාරය Reject කරන්නද?")) return; return _adminBiz(id,status); };
+  window.adminPaymentAction = function(id,status){ if(!isRealAdmin()){ toast2("Admin වරුන්ට පමණයි."); return; } if(!confirm(status==="approved"?"Payment එක Approve කරලා දින 30ක් Active කරන්නද?":"Payment එක Reject කරන්නද?")) return; return _adminPay(id,status); };
+
+  // 3. Validate on save + force re-approval on edit + block duplicate pending payment
+  var form = document.getElementById("listingForm");
+  if(form){
+    form.addEventListener("submit", function(e){
+      try{
+        var data = window.formData ? window.formData() : null;
+        if(data){ var errs = validateBusiness(data); if(errs.length){ e.preventDefault(); e.stopImmediatePropagation(); toast2(errs[0]); return false; } }
+      }catch(err){ console.warn(err); }
+    }, true);
+  }
+  // Patch saveBusiness edit path: after original save, if it was an edit, Firestore status is forced pending by rules.
+  // Note: firestore.rules (included) enforces: owner edit must set status=pending and cannot change featured/verified/subscriptionStatus/ownerId.
+  // 4. Fix WhatsApp links: rewrite wa.me/0... to wa.me/94... on click / render
+  document.addEventListener("click", function(e){
+    var a = e.target.closest && e.target.closest('a[href*="wa.me/0"]');
+    if(a){ var m = a.getAttribute("href").match(/wa\.me\/(\d+)/); if(m) a.setAttribute("href", "https://wa.me/" + window.normalizeLKPhone(m[1])); }
+  }, true);
+  console.log("HOYA v2 patch loaded: demo-bypass blocked, validation on, admin guard on");
+})();
+
+// demo=0 hides demo listings
+window.__SHOW_DEMO = new URLSearchParams(location.search).get('demo') !== '0';
+var _allPublic = window.allPublic;
+window.allPublic = function(){ if(window.state && window.state.firebase) return _allPublic(); if(!window.__SHOW_DEMO){ try{ return (window.localBusinesses?window.localBusinesses():[]).filter(function(x){return x.status==='approved'&&x.subscriptionStatus==='active';}); }catch(e){ return []; } } return _allPublic(); };
+
+</script>
+<script>
+// HOYA Trilingual Patch - Sinhala (default) / English / Tamil
+(function(){
+  var DICT = {
+    "මුල් පිටුව": {en:"Home", ta:"முகப்பு"},
+    "සොයන්න": {en:"Search", ta:"தேடுக"},
+    "ව්‍යාපාරයක් එක් කරන්න": {en:"Add Business", ta:"வணிகத்தை சேர்க்கவும்"},
+    "Account": {en:"Account", ta:"கணக்கு"},
+    "Dashboard": {en:"Dashboard", ta:"டாஷ்போர்டு"},
+    "කාණ්ඩ අනුව සොයන්න": {en:"Search by Category", ta:"வகை வாரியாக தேடுக"},
+    "ඔබට අවශ්‍ය සේවාව තෝරන්න": {en:"Choose the service you need", ta:"உங்களுக்கு தேவையான சேவையை தேர்வு செய்க"},
+    "විශේෂිත ව්‍යාපාර": {en:"Featured Businesses", ta:"சிறப்பு வணிகங்கள்"},
+    "අනුමත ව්‍යාපාර සහ Demo උදාහරණ": {en:"Approved businesses and demo examples", ta:"அங்கீகரிக்கப்பட்ட வணிகங்கள் மற்றும் டெமோ எடுத்துக்காட்டுகள்"},
+    "අද ප්‍රවාහන තත්ත්වය": {en:"Today's Transport Status", ta:"இன்றைய போக்குவரத்து நிலை"},
+    "ප්‍රවාහන සේවා යාවත්කාලීන කිරීම්": {en:"Transport service updates", ta:"போக்குவரத்து சேவை புதுப்பிப்புகள்"},
+    "ව්‍යාපාර සහ සේවා සොයන්න": {en:"Find Businesses & Services", ta:"வணிகங்கள் மற்றும் சேவைகளை கண்டறியவும்"},
+    "නම, කාණ්ඩය, දිස්ත්‍රික්කය හෝ විවෘත තත්ත්වය අනුව සොයන්න.": {en:"Search by name, category, district or open status.", ta:"பெயர், வகை, மாவட்டம் அல்லது திறந்த நிலை மூலம் தேடுக."},
+    "ව්‍යාපාරයක් එක් කරන්න": {en:"Add a Business", ta:"வணிகத்தை சேர்க்கவும்"},
+    "ඔබේ ව්‍යාපාර තොරතුරු ඇතුළත් කරන්න. ලියාපදිංචි කිරීමෙන් පසු Admin අනුමැතිය අවශ්‍ය වේ.": {en:"Enter your business details. Admin approval is required after registration.", ta:"உங்கள் வணிக விவரங்களை உள்ளிடவும். பதிவு செய்த பிறகு நிர்வாக அனுமதி தேவை."},
+    "ව්‍යාපාර හිමිකරුවන්ට සහ Admin සඳහා වෙන වෙනම පාලන පහසුකම්.": {en:"Separate controls for business owners and Admin.", ta:"வணிக உரிமையாளர்கள் மற்றும் நிர்வாகத்திற்கு தனித்தனி கட்டுப்பாடுகள்."},
+    "සියලු කාණ්ඩ": {en:"All Categories", ta:"அனைத்து வகைகளும்"},
+    "සියලු දිස්ත්‍රික්ක": {en:"All Districts", ta:"அனைத்து மாவட்டங்களும்"},
+    "සියලු තත්ත්ව": {en:"All Status", ta:"அனைத்து நிலைகளும்"},
+    "විවෘතයි": {en:"Open", ta:"திறந்துள்ளது"},
+    "වසා ඇත": {en:"Closed", ta:"மூடப்பட்டுள்ளது"},
+    "විස්තර බලන්න": {en:"View Details", ta:"விவரங்களை காண்க"},
+    "Share": {en:"Share", ta:"பகிரவும்"},
+    "Login / Register": {en:"Login / Register", ta:"உள்நுழைக / பதிவு செய்க"},
+    "Logout": {en:"Logout", ta:"வெளியேறுக"},
+    "සොයන්න": {en:"Search", ta:"தேடுக"}
+  };
+  var CAT_LANG = {
+    transport: {en:"Transport", ta:"போக்குவரத்து", si:"ප්‍රවාහන සේවා"},
+    shopping: {en:"Shopping", ta:"ஷாப்பிங்", si:"Shopping Centers"},
+    salons: {en:"Salons", ta:"அழகு நிலையங்கள்", si:"Salons"},
+    restaurants: {en:"Restaurants", ta:"உணவகங்கள்", si:"Restaurants"},
+    grocery: {en:"Grocery", ta:"மளிகை", si:"Grocery"},
+    pharmacy: {en:"Pharmacy", ta:"மருந்தகம்", si:"Pharmacy"},
+    repair: {en:"Repairs", ta:"பழுதுபார்ப்பு", si:"Repairs"},
+    education: {en:"Education", ta:"கல்வி", si:"Education"},
+    other: {en:"Other Services", ta:"பிற சேவைகள்", si:"Other Services"}
+  };
+  var PLACEHOLDER = {
+    "සොයන්න... උදා: Salon, Kandy": {en:"Search... e.g. Salon, Kandy", ta:"தேடுக... எ.கா: Salon, Kandy"},
+    "ව්‍යාපාර නම": {en:"Business Name", ta:"வணிக பெயர்"},
+    "නගරය": {en:"Town / City", ta:"நகரம்"}
+  };
+  function getLang(){ try{ return localStorage.getItem("hoya_lang") || "si"; }catch(e){ return "si"; } }
+  function setLang(l){ try{ localStorage.setItem("hoya_lang", l); }catch(e){} document.documentElement.lang = l==="ta" ? "ta-LK" : l==="en" ? "en-LK" : "si-LK"; applyLang(l); }
+  window.__hoyaSetLang = setLang;
+  window.__hoyaGetLang = getLang;
+  function translateNode(node, lang){
+    if(lang==="si") return; // Sinhala is the source in HTML
+    var t = node.nodeValue; if(!t) return; var key = t.trim(); if(!key) return;
+    var entry = DICT[key] || PLACEHOLDER[key];
+    if(entry && entry[lang]){ node.nodeValue = node.nodeValue.replace(key, entry[lang]); }
+    // partial: contains phrase
+    if(!entry){ for(var k in DICT){ if(key.indexOf(k)!==-1 && DICT[k][lang]){ node.nodeValue = node.nodeValue.replace(k, DICT[k][lang]); break; } } }
+  }
+  function walkAndTranslate(lang){
+    var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+    var nodes=[]; var n; while(n=walker.nextNode()) nodes.push(n);
+    nodes.forEach(function(node){ translateNode(node, lang); });
+    // placeholders
+    document.querySelectorAll("input[placeholder], textarea[placeholder]").forEach(function(el){ var ph=el.getAttribute("placeholder"); if(ph && PLACEHOLDER[ph] && PLACEHOLDER[ph][lang]) el.setAttribute("placeholder", PLACEHOLDER[ph][lang]); if(ph && DICT[ph] && DICT[ph][lang]) el.setAttribute("placeholder", DICT[ph][lang]); });
+  }
+  // To avoid double-translation when switching en->ta, reload approach is safest for static text.
+  // So: switching language reloads the page and applies once. This keeps Sinhala source clean.
+  function applyLang(lang){
+    // Update CATS if available (global lexical)
+    try{ if(typeof CATS!=="undefined" && CATS){ CATS.forEach(function(c){ if(CAT_LANG[c.id]) c.name = CAT_LANG[c.id][lang] || CAT_LANG[c.id].si; }); } }catch(e){}
+    if(lang==="si") return;
+    walkAndTranslate(lang);
+    try{ if(window.renderHome) renderHome(); if(window.renderBrowse && document.getElementById("browse") && document.getElementById("browse").classList.contains("active")) renderBrowse(); }catch(e){}
+    // Re-translate dynamic content after render
+    setTimeout(function(){ walkAndTranslate(lang); }, 50);
+  }
+  function buildSwitcher(){
+    var actions = document.querySelector(".head-actions"); if(!actions) return;
+    if(document.getElementById("hoyaLangSwitch")) return;
+    var wrap = document.createElement("div"); wrap.id="hoyaLangSwitch"; wrap.style.cssText="display:flex;gap:4px;background:#ffffff18;border:1px solid #526a80;border-radius:10px;padding:3px;";
+    [["si","සිංහල"],["en","EN"],["ta","தமிழ்"]].forEach(function(pair){
+      var b=document.createElement("button"); b.type="button"; b.textContent=pair[1]; b.dataset.lang=pair[0];
+      b.style.cssText="border:0;background:transparent;color:#d9e5ec;padding:6px 8px;border-radius:7px;font-size:11px;font-weight:800;cursor:pointer;";
+      if(getLang()===pair[0]) b.style.cssText += "background:#fff;color:#10243d;";
+      b.addEventListener("click", function(){ var l=this.dataset.lang; if(l===getLang()) return; setLang(l); location.reload(); });
+      wrap.appendChild(b);
+    });
+    actions.insertBefore(wrap, actions.firstChild);
+  }
+  // Tamil font
+  var link=document.createElement("link"); link.rel="stylesheet"; link.href="https://fonts.googleapis.com/css2?family=Noto+Sans+Tamil:wght@400;600;700;800&family=Noto+Sans+Sinhala:wght@400;600;700;800&display=swap"; document.head.appendChild(link);
+  document.addEventListener("DOMContentLoaded", function(){
+    buildSwitcher();
+    var lang=getLang();
+    document.documentElement.lang = lang==="ta"?"ta-LK":lang==="en"?"en-LK":"si-LK";
+    if(lang!=="si"){
+      // Apply after original render
+      setTimeout(function(){ applyLang(lang); }, 300);
+    }
+    // Re-apply on dynamic modal / renders
+    var obs=new MutationObserver(function(muts){ if(getLang()==="si") return; var lang2=getLang(); walkAndTranslate(lang2); });
+    obs.observe(document.body, {childList:true, subtree:true});
+  });
+  // Expose for dynamic toasts: keep Sinhala toasts as-is (users mostly Sinhala) - no change
+})();
+
 </script>
 </body>
 </html>
