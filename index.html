@@ -810,5 +810,47 @@ document.querySelectorAll('[data-hoya-cat]')?.forEach(function(a){ a.addEventLis
   <h1>
 </div>
 
+
+<!-- FIX: Buttons not navigating - make every header button work even without data attributes -->
+<script>
+(function(){
+  function goPage(p){ try{ if(typeof go==='function') return go(p); }catch(e){} document.querySelector('[data-page="'+p+'"]')?.click(); }
+  function doSearch(){ try{ if(typeof searchNow==='function') return searchNow(); }catch(e){} var q=document.getElementById('homeQ')?.value||''; location.hash='#browse'; }
+  function doAccount(){ try{ if(typeof showAuth==='function' && !window._hoyaUser) return showAuth(); }catch(e){} document.querySelector('[data-action="account"]')?.click(); }
+  document.addEventListener('click', function(e){
+    var btn = e.target.closest('button');
+    if(!btn) return;
+    var txt = (btn.textContent||'').trim();
+    // Language pills: සිංහල / EN / தமிழ்
+    if(txt==='සිංහල' || txt==='EN' || txt==='தமிழ்' || btn.dataset.lang){
+      var lang = btn.dataset.lang || (txt==='සිංහල'?'si': txt==='EN'?'en':'ta');
+      try{ localStorage.setItem('hoya_lang', lang); }catch(_){}
+      if(typeof setLang==='function'){ try{ setLang(lang); }catch(_){} }
+      location.reload();
+      return;
+    }
+    // Login button (plain, no data-action)
+    if(txt==='Login' && !btn.dataset.action){
+      e.preventDefault(); doAccount(); return;
+    }
+    // Hamburger ☰ (plain)
+    if((txt==='☰' || txt==='≡' || txt==='Menu') && !btn.dataset.page && !btn.dataset.action){
+      e.preventDefault();
+      var drawer=document.getElementById('hoyaMenuDrawer');
+      if(drawer){ drawer.style.display='block'; return; }
+      goPage('browse'); return;
+    }
+    // Search button: සොයන්න → (plain)
+    if(txt.indexOf('සොයන්න')===0 && !btn.dataset.action){
+      e.preventDefault(); doSearch(); return;
+    }
+    // සියල්ල බලන්න → (plain)
+    if(txt.indexOf('සියල්ල බලන්න')>=0 && !btn.dataset.page){
+      e.preventDefault(); goPage('browse'); return;
+    }
+  }, true);
+})();
+</script>
+
 </body>
 </html>
