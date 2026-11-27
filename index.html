@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="si-LK">
 <head>
-<style>#hoyaLangSwitch{flex-shrink:0} .head-actions>span{display:none!important} .head-actions .lang{display:none!important}</style>
+<style>.head-actions{padding-right:2px}.head-actions .account{position:relative;z-index:10001}#hoyaLangSwitch{flex-shrink:0} .head-actions>span{display:none!important} .head-actions .lang{display:none!important}</style>
 <!-- TRILINGUAL: si default, en/ta switcher, persists in localStorage hoya_lang -->
 <!-- HOYA v2: demo-bypass blocked, validation, admin guard, wa 94 fix, ?demo=0, firestore.rules MUST be deployed -->
 <meta charset="UTF-8">
@@ -63,6 +63,15 @@ main{padding:35px 0 62px}.view{display:none}.view.active{display:block}.section{
 </style>
 <style>.head-actions .lang{display:none !important;}</style>
 <meta name="keywords" content="hoya, hoya bus, hoya taxi, hoya jobs, hoya cake, hoya food delivery, hoya dispenser, hoya sri lanka, hoya lanka">
+
+<style>
+.provider-only{display:none!important}
+body.logged-in .provider-only{display:block!important}
+body.logged-in .provider-only-flex{display:flex!important}
+.customer-view{ display:block; }
+body.logged-in .customer-view{ display:block; }
+</style>
+
 </head>
 <body>
 <header class="header">
@@ -72,11 +81,17 @@ main{padding:35px 0 62px}.view{display:none}.view.active{display:block}.section{
    <button class="active" data-page="home">මුල් පිටුව</button>
    <button data-page="browse">සොයන්න</button>
    <button data-action="add-business">ව්‍යාපාරයක් එක් කරන්න</button>
-   <button data-page="dashboard">Dashboard</button>
+   <button data-page="dashboard">My Dashboard</button>
   </nav>
   <div class="head-actions"><button class="account" data-action="account">Login</button><button class="mobile-menu" data-page="browse">☰</button></div>
  </div>
 </header>
+
+<div class="customer-view" style="background:#fff;padding:12px;margin:10px auto;max-width:1100px;border-radius:12px;text-align:center">
+  <strong style="font-size:18px">🔍 මොකක්ද හොයන්නේ?</strong><br>
+  <span style="font-size:13px;color:#555">District + ප්‍රදේශය තෝරලා, ☰ Menu එකෙන් සේවාව තෝරන්න — නම, Phone, WhatsApp විතරක් පේනවා.</span>
+</div>
+
 
 <!-- HOYA ALL UPDATES - Admin 250 / Moderator 250, BOC, Jobs 300, Sales 500, Ads 800, District>Area, Publish/Unpublish, WhatsApp Notify -->
 <div style="background:#fff3cd;border:1px solid #ffe08a;padding:10px 14px;text-align:center;font-size:13px;margin:10px auto;max-width:1100px;border-radius:10px">
@@ -97,7 +112,13 @@ main{padding:35px 0 62px}.view{display:none}.view.active{display:block}.section{
   <select id="hoyaAreaSelect" style="padding:8px;border-radius:8px;margin:6px"><option value="">පළමුව දිස්ත්‍රික්කය තෝරන්න</option></select>
   <div style="font-size:12px;color:#666">District තෝරපු ගමන් ඒ District එකේ සියලුම ප්‍රදේශ පෙන්නනවා. Jobs වෙනම • Sales වෙනම • Bus Route + වෙලාවන් • Taxi ළඟම එක • Offers වෙනම • Social Links • Daily Services + මිල + විවෘතයිද</div>
 </div>
-<div id="hoyaMenuBtn" style="position:fixed;top:12px;right:12px;z-index:9999;background:#0b3d5c;color:#fff;border-radius:10px;padding:10px 14px;font-size:20px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">☰</div>
+
+<div style="background:#fff;padding:10px;margin:10px auto;max-width:1100px;border-radius:12px;border:1px solid #e5e5e5;text-align:center">
+  <strong>⭐ සියලුම සේවා වලට තරු දෙන්න පුළුවන්</strong> &nbsp; <span class="hoya-stars"><button data-rate="demo" data-stars="1">⭐</button><button data-rate="demo" data-stars="2">⭐⭐</button><button data-rate="demo" data-stars="3">⭐⭐⭐</button><button data-rate="demo" data-stars="4">⭐⭐⭐⭐</button><button data-rate="demo" data-stars="5">⭐⭐⭐⭐⭐</button></span>
+  <div style="font-size:12px;color:#666">සාමාන්‍ය මිනිස්සුන්ට ඕනම සේවාවක් 1 තරුවේ සිට 5 තරු දක්වා Rate කරන්න පුළුවන්.</div>
+</div>
+
+<div id="hoyaMenuBtn" style="position:fixed;bottom:20px;right:16px;top:auto;z-index:9999;background:#0b3d5c;color:#fff;border-radius:50%;padding:12px 14px;width:52px;height:52px;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.3)">☰</div>
 <div id="hoyaMenuDrawer" style="display:none;position:fixed;top:0;right:0;bottom:0;width:280px;background:#fff;z-index:10000;box-shadow:-4px 0 20px rgba(0,0,0,.3);overflow-y:auto;padding:16px">
   <div style="display:flex;justify-content:space-between;align-items:center"><strong>HOYA - සියලු සේවා</strong><button id="hoyaMenuClose" style="border:none;background:#eee;border-radius:8px;padding:6px 10px">✕</button></div>
   <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;font-size:15px">
@@ -111,8 +132,17 @@ main{padding:35px 0 62px}.view{display:none}.view.active{display:block}.section{
     <a href="#" data-hoya-cat="jobs">💼 රැකියා / Jobs - Rs.300</a>
     <a href="#" data-hoya-cat="sales">🏷️ විකුණුම් / Sales - Rs.500</a>
     <a href="#" data-hoya-cat="vehicle-sales">🚗 වාහන විකුණුම්</a>
+    
+    <a href="#" data-hoya-cat="rooms">🛏️ Rooms</a>
+    <a href="#" data-hoya-cat="restaurant">🍽️ Restaurant</a>
+    <a href="#" data-hoya-cat="bar">🍺 Bar</a>
+    <a href="#" data-hoya-cat="advertising-shop">📢 Advertising Shop</a>
+    <a href="#" data-hoya-cat="bank">🏦 Bank</a>
+    <a href="#" data-hoya-cat="furniture">🪑 Furniture</a>
+    <a href="#" data-hoya-cat="pharmacy">💊 Pharmacy / ෆාමසි</a>
+    <a href="#" data-hoya-cat="class">📚 Class</a>
     <a href="#" data-hoya-cat="land-sales">🏡 ඉඩම් විකුණුම්</a>
-    <hr><a href="#" data-hoya-page="home">🏠 මුල් පිටුව</a><a href="#" data-hoya-page="browse">🔍 සොයන්න</a><a href="#" data-hoya-page="dashboard">📊 Dashboard</a><a href="#" data-hoya-page="add-business">➕ ව්‍යාපාරයක් එක් කරන්න</a>
+    <hr><a href="#" data-hoya-page="home">🏠 මුල් පිටුව</a><a href="#" data-hoya-page="browse">🔍 සොයන්න</a><a href="#" data-hoya-page="dashboard">📊 My Dashboard</a><a href="#" data-hoya-page="add-business">➕ ව්‍යාපාරයක් එක් කරන්න</a>
     <hr><div style="font-size:13px;background:#eef6ff;padding:10px;border-radius:10px">📢 Ads 3x3 - Rs.800 - දින 28ක්<br>Designer: 071 790 9008<br>Sponsor: 076 988 2044<br>BOC - Nimantha Sandaruwan - 86837138</div>
   </div>
 </div>
@@ -242,6 +272,14 @@ const CATS=[
  {id:"sales",name:"විකුණුම් / Sales",en:"Sales",icon:"🏷️",sub:"වාහන / ඉඩම් / බඩු - Rs.500/මාසෙට"},
  {id:"vehicle-sales",name:"වාහන විකුණුම්",en:"Vehicle Sales",icon:"🚗",sub:"වාහන විකුණන තැන්"},
  {id:"land-sales",name:"ඉඩම් විකුණුම්",en:"Land Sales",icon:"🏡",sub:"ඉඩම් විකුණන තැන්"},
+ {id:"rooms",name:"Rooms",en:"Rooms",icon:"🛏️",sub:"Rooms / Lodging"},
+ {id:"restaurant",name:"Restaurant",en:"Restaurant",icon:"🍽️",sub:"Restaurant / කෑම කඩ"},
+ {id:"bar",name:"Bar",en:"Bar",icon:"🍺",sub:"Bar"},
+ {id:"advertising-shop",name:"Advertising Shop",en:"Advertising Shop",icon:"📢",sub:"Advertising Shop"},
+ {id:"bank",name:"Bank",en:"Bank",icon:"🏦",sub:"Bank"},
+ {id:"furniture",name:"Furniture",en:"Furniture",icon:"🪑",sub:"Furniture"},
+ {id:"pharmacy",name:"Pharmacy / ෆාමසි",en:"Pharmacy",icon:"💊",sub:"Pharmacy / ෆාමසි"},
+ {id:"class",name:"Class",en:"Class",icon:"📚",sub:"Class / අධ්‍යාපන"},
  {id:"restaurants",name:"ආපනශාලා",en:"Restaurants",icon:"🍽️",sub:"කෑම සහ බීම"},
  {id:"hotels",name:"හෝටල් සහ නවාතැන්",en:"Hotels & stays",icon:"🏨",sub:"නවාතැන්"},
  {id:"medical",name:"වෛද්‍ය සේවා",en:"Medical services",icon:"🏥",sub:"Pharmacy / Clinic"},
@@ -615,7 +653,7 @@ window.allPublic = function(){ if(window.state && window.state.firebase) return 
   function buildSwitcher(){
     var actions = document.querySelector(".head-actions"); if(!actions) return;
     if(document.getElementById("hoyaLangSwitch")) return;
-    var wrap = document.createElement("div"); wrap.id="hoyaLangSwitch"; wrap.style.cssText="display:flex;gap:4px;background:#ffffff18;border:1px solid #526a80;border-radius:10px;padding:3px;";
+    var wrap = document.createElement("div"); wrap.id="hoyaLangSwitch"; wrap.style.cssText="display:flex;gap:4px;background:#ffffff18;border:1px solid #526a80;border-radius:10px;padding:2px;";
     [["si","සිංහල"],["en","EN"],["ta","தமிழ்"]].forEach(function(pair){
       var b=document.createElement("button"); b.type="button"; b.textContent=pair[1]; b.dataset.lang=pair[0];
       b.style.cssText="border:0;background:transparent;color:#d9e5ec;padding:6px 8px;border-radius:7px;font-size:11px;font-weight:800;cursor:pointer;";
@@ -643,5 +681,65 @@ window.allPublic = function(){ if(window.state && window.state.firebase) return 
 })();
 
 </script>
+
+<!-- STAR RATING: Normal people can rate 1-5 stars for any service -->
+<script>
+window.HOYA_RATING = {
+  get: function(id){ try{ var r=JSON.parse(localStorage.getItem('hoya_ratings')||'{}'); return r[id]||{total:0,count:0}; }catch(e){ return {total:0,count:0}; } },
+  add: function(id, stars){ try{ var r=JSON.parse(localStorage.getItem('hoya_ratings')||'{}'); var cur=r[id]||{total:0,count:0}; cur.total+=stars; cur.count+=1; r[id]=cur; localStorage.setItem('hoya_ratings', JSON.stringify(r)); return cur; }catch(e){ return null; } },
+  avg: function(id){ var c=window.HOYA_RATING.get(id); return c.count? (c.total/c.count).toFixed(1): "0.0"; }
+};
+document.addEventListener('click', function(e){
+  var btn = e.target.closest('[data-rate]');
+  if(!btn) return;
+  var id = btn.dataset.rate, stars = parseInt(btn.dataset.stars||"5");
+  var res = window.HOYA_RATING.add(id, stars);
+  if(res){ alert('ස්තූතියි! ඔයා '+stars+' තරු දුන්නා. ⭐ සාමාන්‍ය: '+(res.total/res.count).toFixed(1)+' / 5'); }
+});
+// Logo click -> home
+document.addEventListener('click', function(e){
+  var logo = e.target.closest('.brand, #brandIcon');
+  if(logo){ e.preventDefault(); try{ if(window.go) go('home'); }catch(err){} window.scrollTo({top:0, behavior:'smooth'}); }
+});
+</script>
+<style>.hoya-stars button{border:none;background:none;font-size:18px;cursor:pointer;padding:2px}.hoya-stars button:hover{transform:scale(1.2)}</style>
+
+
+<script>
+// CUSTOMER vs PROVIDER VIEW: Normal people see simple view, Providers see details in My Dashboard
+(function(){
+  function applyView(){
+    var loggedIn = !!(window.state && window.state.user);
+    document.body.classList.toggle('logged-in', loggedIn);
+    // Hide detailed banners for customers: payment, WhatsApp notify, Ads details, BOC details
+    var banners = document.querySelectorAll('div');
+    // We hide by checking text: if banner contains BOC / Payment / WhatsApp දැනුම් / Ads 3x3 and user not logged in, hide it - except Ads grid itself stays simple
+    // Instead: hide elements with data-provider attribute - we add it below via JS
+  }
+  // Mark provider-only sections by their content
+  function markProviderSections(){
+    document.querySelectorAll('div, section').forEach(function(el){
+      var t = el.textContent||"";
+      if(el.id==='hoyaAds' || el.id==='hoyaMenuDrawer') return; // Ads stays but simplified for customers
+      if(t.includes('BOC - Nimantha') && t.includes('උඩුගත කිරීම නොමිලේ')){ el.classList.add('provider-only'); }
+      if(t.includes('Payment නැති බව WhatsApp')){ el.classList.add('provider-only'); }
+      if(t.includes('Admin / Moderator') && t.includes('Unpublish')){ el.classList.add('provider-only'); }
+    });
+    // Ads section: for customers, show only title + grid, hide Facebook Ads details + BOC box
+    var ads = document.getElementById('hoyaAds');
+    if(ads){
+      ads.querySelectorAll('div').forEach(function(d){
+        if(d.textContent.includes('Facebook Ads හදලා')){ d.classList.add('provider-only'); }
+      });
+    }
+  }
+  document.addEventListener('DOMContentLoaded', function(){ markProviderSections(); applyView(); });
+  // Re-apply after login/logout: watch state
+  setInterval(function(){ var li = !!(window.state && window.state.user); if(document.body.classList.contains('logged-in')!==li){ applyView(); markProviderSections(); } }, 1000);
+  // Rename Dashboard to My Dashboard for providers
+  document.addEventListener('click', function(e){ if(e.target.closest('[data-page="dashboard"]')){ /* My Dashboard */ } });
+})();
+</script>
+
 </body>
 </html>
