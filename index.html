@@ -124,6 +124,16 @@ body.logged-in .customer-view{ display:block; }
 #browse .filters{grid-template-columns:repeat(auto-fit,minmax(min(100%,155px),1fr))}
 #browse .filters .control:disabled{opacity:.6}
 </style>
+<style>
+#hoyaGetApp{width:min(420px,calc(100% - 24px));max-height:88dvh;overflow:auto;border:0;border-radius:18px;padding:16px;color:#10243d}
+#hoyaGetApp::backdrop{background:#081a2abf}
+.hoya-app-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hoya-app-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0}
+.hoya-app-tabs button[aria-pressed="true"]{background:#087a70;color:white}
+.hoya-iphone-guide{display:block;width:auto;max-width:100%;max-height:48dvh;margin:0 auto 10px}
+.hoya-app-heading button{min-width:36px;min-height:36px}
+@media(max-width:380px){.head-actions{gap:4px}.head-actions #hoyaInstallBtn{white-space:nowrap;padding-inline:6px}}
+</style>
 </head>
 <body>
 <header class="header">
@@ -135,7 +145,7 @@ body.logged-in .customer-view{ display:block; }
    <button data-action="add-business">ව්‍යාපාරයක් එක් කරන්න</button>
    <button data-page="dashboard">My Dashboard</button>
   </nav>
-  <div class="head-actions"><button class="account" data-action="account">Login</button><button class="install-action" id="hoyaInstallBtn" type="button" hidden>Install</button><button class="mobile-menu" data-page="browse">☰</button></div>
+  <div class="head-actions"><button class="account" data-action="account">Login</button><button class="install-action" id="hoyaInstallBtn" type="button" aria-haspopup="dialog">Get App</button><button class="mobile-menu" data-page="browse">☰</button></div>
  </div>
 </header>
 <div class="modebar" id="modeBar">Demo Preview — Online සැකසුම් ඇතුළත් කළ පසු Online Database එක සම්බන්ධ වේ.</div>
@@ -1084,10 +1094,10 @@ window.allPublic = function(){ if(state && state.firebase) return _allPublic(); 
   function buildSwitcher(){
     var actions = document.querySelector(".head-actions"); if(!actions) return;
     if(document.getElementById("hoyaLangSwitch")) return;
-    var wrap = document.createElement("div"); wrap.id="hoyaLangSwitch"; wrap.style.cssText="display:flex;gap:4px;background:#ffffff18;border:1px solid #526a80;border-radius:10px;padding:2px;";
-    [["si","සිංහල"],["en","EN"],["ta","தமிழ்"]].forEach(function(pair){
-      var b=document.createElement("button"); b.type="button"; b.textContent=pair[1]; b.dataset.lang=pair[0];
-      b.style.cssText="border:0;background:transparent;color:#d9e5ec;padding:6px 8px;border-radius:7px;font-size:11px;font-weight:800;cursor:pointer;";
+    var wrap = document.createElement("div"); wrap.id="hoyaLangSwitch"; wrap.style.cssText="display:flex;gap:1px;background:#ffffff18;border:1px solid #526a80;border-radius:10px;padding:2px;";
+    [["si","ස","සිංහල"],["en","EN","English"],["ta","த","தமிழ்"]].forEach(function(pair){
+      var b=document.createElement("button"); b.type="button"; b.textContent=pair[1]; b.dataset.lang=pair[0]; b.setAttribute("aria-label",pair[2]); b.setAttribute("aria-pressed",String(getLang()===pair[0]));
+      b.style.cssText="border:0;background:transparent;color:#d9e5ec;min-width:24px;padding:6px 4px;border-radius:7px;font-size:11px;font-weight:800;cursor:pointer;";
       if(getLang()===pair[0]) b.style.cssText += "background:#fff;color:#10243d;";
       b.addEventListener("click", function(){ var l=this.dataset.lang; if(l===getLang()) return; setLang(l); location.reload(); });
       wrap.appendChild(b);
@@ -1173,23 +1183,91 @@ document.addEventListener('click', function(e){
 </script>
 
 
+<dialog id="hoyaGetApp" aria-labelledby="hoyaGetAppTitle" translate="no">
+ <div class="hoya-app-heading"><h2 id="hoyaGetAppTitle">Get HOYA</h2><form method="dialog"><button class="btn btn-light" aria-label="Close">✕</button></form></div>
+ <div class="hoya-app-tabs">
+  <button class="btn btn-light" id="hoyaAndroid" type="button" aria-pressed="false">Android Users</button>
+  <button class="btn btn-light" id="hoyaApple" type="button" aria-pressed="false">Apple Users</button>
+ </div>
+ <p id="hoyaInstallStatus" role="status"></p>
+ <div id="hoyaAppleGuide" hidden>
+  <img class="hoya-iphone-guide" src="./iphone-install-guide.png" loading="lazy" width="1024" height="1536" alt="In Safari, tap Share, choose Add to Home Screen, turn on Open as Web App if shown, then tap Add.">
+  <a class="btn btn-primary" id="hoyaSafari" href="./">Install via Safari</a>
+  <button class="btn btn-light" id="hoyaCopyLink" type="button">Copy HOYA link</button>
+  <p>If Safari doesn’t open, paste the HOYA link into Safari. Then tap Share → Add to Home Screen.</p>
+ </div>
+</dialog>
 <script>
 (()=>{
  const button=document.getElementById("hoyaInstallBtn");
+ const dialog=document.getElementById("hoyaGetApp");
+ const android=document.getElementById("hoyaAndroid");
+ const apple=document.getElementById("hoyaApple");
+ const status=document.getElementById("hoyaInstallStatus");
+ const guide=document.getElementById("hoyaAppleGuide");
+ const safari=document.getElementById("hoyaSafari");
+ const appUrl=new URL("./",location.href);
+ const ua=navigator.userAgent;
+ const appleMobile=/iP(ad|hone|od)/.test(ua)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+ const inSafari=/Safari/.test(ua)&&/Version\//.test(ua)&&!/(CriOS|FxiOS|EdgiOS|OPiOS)/.test(ua);
  let promptEvent;
+ let installed=false;
+ const isInstalled=()=>installed||matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+ const select=platform=>{
+  android.setAttribute("aria-pressed",String(platform==="android"));
+  apple.setAttribute("aria-pressed",String(platform==="apple"));
+  guide.hidden=platform!=="apple";
+  status.textContent="";
+ };
  window.addEventListener("beforeinstallprompt",event=>{
   event.preventDefault();
   promptEvent=event;
-  button.hidden=false;
  });
- button.addEventListener("click",async ()=>{
-  if(!promptEvent) return;
+ button.addEventListener("click",()=>{
+  select(null);
+  dialog.showModal();
+ });
+ apple.addEventListener("click",()=>{
+  select("apple");
+  safari.href=appleMobile&&!inSafari&&appUrl.protocol==="https:"
+   ?"x-safari-"+appUrl.href
+   :appUrl.href;
+ });
+ safari.addEventListener("click",event=>{
+  if(!appleMobile||!inSafari) return;
+  event.preventDefault();
+  status.textContent="You’re already in Safari. Tap Share → Add to Home Screen.";
+ });
+ document.getElementById("hoyaCopyLink").addEventListener("click",async ()=>{
+  try{
+   await navigator.clipboard.writeText(appUrl.href);
+   status.textContent="Link copied. Paste it into Safari.";
+  }catch{
+   status.textContent="HOYA link: "+appUrl.href;
+  }
+ });
+ android.addEventListener("click",async ()=>{
+  select("android");
+  if(isInstalled()){
+   status.textContent="HOYA is already installed.";
+   return;
+  }
+  if(!promptEvent){
+   status.textContent="Open HOYA in Chrome on Android, then tap ⋮ → Install app or Add to Home screen.";
+   return;
+  }
   const event=promptEvent;
   promptEvent=null;
-  button.hidden=true;
-  try{await event.prompt()}catch(error){console.error("Install prompt unavailable",error)}
+  try{
+   await event.prompt();
+   const choice=await event.userChoice;
+   if(choice.outcome==="accepted") dialog.close();
+   else status.textContent="Install from Chrome’s ⋮ menu when you’re ready.";
+  }catch{
+   status.textContent="Open Chrome’s ⋮ menu and choose Install app or Add to Home screen.";
+  }
  });
- window.addEventListener("appinstalled",()=>{promptEvent=null;button.hidden=true});
+ window.addEventListener("appinstalled",()=>{installed=true;promptEvent=null;if(dialog.open) dialog.close()});
  if("serviceWorker" in navigator){
   navigator.serviceWorker.register("./sw.js").catch(error=>console.error("HOYA service worker",error));
  }
