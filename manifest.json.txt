@@ -1,0 +1,23 @@
+{
+  "name": "HOYA - Sri Lanka",
+  "short_name": "HOYA",
+  "description": "HOYA - HOYA Bus, Taxi, කෑම, කේක්, Dispensary, Jobs, Sales Sri Lanka",
+  "start_url": "/Hoya-App/",
+  "display": "standalone",
+  "background_color": "#10243d",
+  "theme_color": "#10243d",
+  "icons": [
+    {
+      "src": "hoya-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "hoya-logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
