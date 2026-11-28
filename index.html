@@ -134,6 +134,16 @@ body.logged-in .customer-view{ display:block; }
 .hoya-app-heading button{min-width:36px;min-height:36px}
 @media(max-width:380px){.head-actions{gap:4px}.head-actions #hoyaInstallBtn{white-space:nowrap;padding-inline:6px}}
 </style>
+<style>
+.hoya-payment{margin:16px 0;padding:16px;border:1px solid #b8d9d5;border-radius:14px;background:#eef9f8;color:#10243d}
+.hoya-payment p,.hoya-payment li{font-size:14px;line-height:1.65}
+.hoya-payment li+li{margin-top:8px}
+.hoya-payment .btn,.hoya-owner-pay,.hoya-admin-add{min-height:44px;font-weight:800}
+.hoya-owner-pay{outline:2px solid #1aa18c;outline-offset:2px}
+#listingPhotoPreview{max-width:min(100%,280px);max-height:185px;object-fit:contain;border-radius:12px}
+.hoya-admin-controls{display:flex;flex-wrap:wrap;gap:10px}
+.hoya-job-card .cover img{width:100%;height:100%;object-fit:cover}
+</style>
 </head>
 <body>
 <header class="header">
@@ -218,7 +228,15 @@ body.logged-in .customer-view{ display:block; }
     </div>
    </div>
   </div>
-  <p id="listingNotice" class="notice">දැන්වීම Admin සමාලෝචනයට යවයි.</p>
+  <div class="field">
+ <label for="listingPhoto">ප්‍රධාන ඡායාරූපය</label>
+ <input class="control" id="listingPhoto" type="file" accept="image/jpeg,image/png,image/webp">
+ <small>වෙළඳසැලේ, ව්‍යාපාරයේ හෝ වාහනයේ ඡායාරූපයක්. උපරිම 500 KB.</small>
+ <p id="listingPhotoStatus" role="status"></p>
+ <img id="listingPhotoPreview" alt="දැන්වීමේ ඡායාරූපය" hidden>
+ <button class="btn btn-light" id="removeListingPhoto" type="button" hidden>ඡායාරූපය ඉවත් කරන්න</button>
+</div>
+<p id="listingNotice" class="hoya-payment">දැන්වීම යොමු කිරීම නොමිලේ.</p>
   <p id="listingFeedback" role="status" aria-live="polite"></p>
   <div class="form-actions"><button class="btn btn-primary" type="submit">ව්‍යාපාරය සුරකින්න</button><button class="btn btn-light" type="button" data-page="dashboard">අවලංගු කරන්න</button></div>
  </form></div>
@@ -314,6 +332,38 @@ function localSet(key,value){localStorage.setItem(key,JSON.stringify(value))}
 function localBusinesses(){return localGet("hoya_local_businesses",[])}
 function localPayments(){return localGet("hoya_local_payments",[])}
 const DAY_MS=86400000;
+const TRIAL_DAYS=30;
+const PHOTO_MAX_BYTES=500000;
+const BANK=Object.freeze({bank:"BOC",name:"Nimantha Sandaruwan",account:"86837138"});
+let expiryTimer;
+function paymentNotice(category){
+ const fee="රු."+subscriptionPrice(category);
+ const language=window.__hoyaGetLang?.()||"si";
+ if(language==="en") return `Submitting a listing is free. The listing runs free for ${TRIAL_DAYS} days after approval. To keep it public, transfer ${fee} for 30 days and submit your payment reference. The listing is temporarily hidden when the free period expires and returns after your payment is confirmed. No automatic debit.`;
+ if(language==="ta") return `முதல் விளம்பரத்தைச் சமர்ப்பிப்பது இலவசம். ஒப்புதல் கிடைத்த பிறகு ${TRIAL_DAYS} நாட்கள் இலவசமாகக் காட்டப்படும். தொடர்ந்து 30 நாட்கள் காட்ட ${fee} செலுத்தி பரிவர்த்தனை இலக்கத்தை அனுப்புங்கள். இலவச காலம் முடிந்தால் விளம்பரம் தற்காலிகமாக மறைக்கப்பட்டு, பணம் உறுதிசெய்யப்பட்ட பின் மீண்டும் காட்டப்படும். தானாகப் பணம் கழிக்கப்படாது.`;
+ return `දැන්වීම යොමු කිරීම නොමිලේ. පළමු අනුමැතියෙන් පසු දින ${TRIAL_DAYS}ක් නොමිලේ පෙන්වයි. ඉන් පසු දින 30කට ${fee}ක් බැංකු මාරුවකින් ගෙවා ගනුදෙනු අංකය යොමු කරන්න. ගෙවීම තහවුරු වී නැත්නම් කාලය අවසන් වූ විට දැන්වීම තාවකාලිකව සඟවයි. ගෙවීම තහවුරු කළ පසු නැවත පෙන්වයි. මුදල් ස්වයංක්‍රීයව අය නොකෙරේ.`;
+}
+function firstApproval(listing,now=Date.now()){
+ if(listing.trialStartedAt||listing.subscriptionStatus==="active"||listing.freeLaunchUsed) return {};
+ return {trialStartedAt:new Date(now).toISOString(),subscriptionStatus:"active",plan:"temporary",
+  subscriptionExpiry:new Date(now+TRIAL_DAYS*DAY_MS).toISOString()};
+}
+function queueExpiryRefresh(){
+ clearTimeout(expiryTimer);
+ const now=Date.now();
+ let next=Infinity;
+ for(const listing of state.publicBusinesses){
+  for(const timestamp of [expiryTime(listing),listing.category==="jobs"&&listing.applicationDeadline?Date.parse(listing.applicationDeadline+"T23:59:59.999+05:30")+1:NaN]){
+   if(timestamp>now&&timestamp<next) next=timestamp;
+  }
+ }
+ if(Number.isFinite(next)) expiryTimer=setTimeout(()=>{
+  renderHome();
+  if($("#browse").classList.contains("active")) renderBrowse();
+  if($("#dashboard").classList.contains("active")) renderDashboard();
+  queueExpiryRefresh();
+ },Math.min(next-now+20,2147483647));
+}
 function expiryTime(listing){
  const expiry=listing.subscriptionExpiry;
  return expiry?.toMillis?.() ?? (expiry ? Date.parse(expiry) : NaN);
@@ -346,10 +396,10 @@ function setCategoryOptions(){
 }
 function jobCard(job){
  const metadata=[job.company,job.town||job.district,JOB_TYPES[job.employmentType]].filter(Boolean).map(escapeHTML).join(" · ");
- return `<article class="card hoya-job-card"><div class="card-body"><span class="pill">💼 රැකියා</span><h3>${escapeHTML(job.name)}</h3><p class="card-meta">${metadata}</p><p class="card-desc">${escapeHTML(job.description||"")}</p>${job.applicationDeadline?`<p class="card-meta">අයදුම් කරන්න: ${escapeHTML(job.applicationDeadline)} දක්වා</p>`:""}<div class="card-actions"><a class="btn btn-primary" href="?business=${encodeURIComponent(job.id)}" data-detail="${escapeHTML(job.id)}">රැකියාව බලන්න</a></div></div></article>`;
+ return `<article class="card hoya-job-card">${job.coverImage?`<div class="cover"><img src="${escapeHTML(job.coverImage)}" alt="" loading="lazy"></div>`:""}<div class="card-body"><span class="pill">💼 රැකියා</span><h3 translate="no">${escapeHTML(job.name)}</h3><p class="card-meta" translate="no">${metadata}</p><p class="card-desc" translate="no">${escapeHTML(job.description||"")}</p>${job.applicationDeadline?`<p class="card-meta">අයදුම් කරන්න: ${escapeHTML(job.applicationDeadline)} දක්වා</p>`:""}<div class="card-actions"><a class="btn btn-primary" href="?business=${encodeURIComponent(job.id)}" data-detail="${escapeHTML(job.id)}">රැකියාව බලන්න</a></div></div></article>`;
 }
-function businessCard(b){if(b.category==="jobs")return jobCard(b);const demo=b.isDemo===true;const status=b.category==="transport"?statusName(b.transportStatus):((b.isOpen===false)?"වසා ඇත":"විවෘතයි");const pillClass=b.category==="transport"?(b.transportStatus||"running"):(b.isOpen===false?"closed":"");return `<article class="card"><div class="cover">${b.coverImage?`<img src="${escapeHTML(b.coverImage)}" alt="">`:cat(b.category).icon}${demo?'<span class="tag">DEMO</span>':(b.verified?'<span class="tag verified">✓ VERIFIED</span>':'')}</div><div class="card-body"><div class="card-title-row"><div><h3>${escapeHTML(b.name)}</h3><div class="card-category">${escapeHTML(catName(b.category))}</div></div><span class="pill ${pillClass}">${escapeHTML(status)}</span></div><div class="card-meta"><span>📍 ${escapeHTML(b.town||b.district||"ශ්‍රී ලංකාව")}</span><span>${escapeHTML(b.district||"")}</span></div><p class="card-desc">${escapeHTML(b.description||"")}</p><div class="card-actions"><a class="btn btn-dark" href="?business=${encodeURIComponent(b.id)}" data-detail="${escapeHTML(b.id)}">විස්තර බලන්න</a><button class="btn btn-light" data-share="${escapeHTML(b.id)}">↗ Share</button></div></div></article>`}
-function renderHome(){const list=allPublic();$("#featuredGrid").innerHTML=list.slice(0,3).map(businessCard).join("")||'<div class="empty">තවම අනුමත ව්‍යාපාර නැහැ.</div>';const buses=list.filter(b=>b.category==="transport");$("#transportPanel").innerHTML=buses.length?buses.map(b=>`<div class="transport-row"><div class="route"><strong>${escapeHTML(b.name)}</strong><small>${escapeHTML(b.routeOrigin||"")} → ${escapeHTML(b.routeDestination||"")}</small></div><div class="transport-cell"><small>ඊළඟ වේලාව</small><strong>${escapeHTML((b.times||[])[0]||"—")}</strong></div><div class="transport-cell"><small>අද තත්ත්වය</small><strong>${escapeHTML(statusName(b.transportStatus))}</strong></div><span class="status ${escapeHTML(b.transportStatus||"running")}">${escapeHTML(statusName(b.transportStatus))}</span></div>`).join(""):'<div class="empty">තවම ප්‍රවාහන තොරතුරු නැහැ.</div>'}
+function businessCard(b){if(b.category==="jobs")return jobCard(b);const demo=b.isDemo===true;const status=b.category==="transport"?statusName(b.transportStatus):((b.isOpen===false)?"වසා ඇත":"විවෘතයි");const pillClass=b.category==="transport"?(b.transportStatus||"running"):(b.isOpen===false?"closed":"");return `<article class="card"><div class="cover">${b.coverImage?`<img src="${escapeHTML(b.coverImage)}" alt="">`:cat(b.category).icon}${demo?'<span class="tag">DEMO</span>':(b.verified?'<span class="tag verified">✓ VERIFIED</span>':'')}</div><div class="card-body"><div class="card-title-row"><div><h3 translate="no">${escapeHTML(b.name)}</h3><div class="card-category">${escapeHTML(catName(b.category))}</div></div><span class="pill ${pillClass}">${escapeHTML(status)}</span></div><div class="card-meta"><span>📍 ${escapeHTML(b.town||b.district||"ශ්‍රී ලංකාව")}</span><span>${escapeHTML(b.district||"")}</span></div><p class="card-desc" translate="no">${escapeHTML(b.description||"")}</p><div class="card-actions"><a class="btn btn-dark" href="?business=${encodeURIComponent(b.id)}" data-detail="${escapeHTML(b.id)}">විස්තර බලන්න</a><button class="btn btn-light" data-share="${escapeHTML(b.id)}">↗ Share</button></div></div></article>`}
+function renderHome(){const list=allPublic();$("#featuredGrid").innerHTML=list.slice(0,3).map(businessCard).join("")||'<div class="empty">තවම අනුමත ව්‍යාපාර නැහැ.</div>';const buses=list.filter(b=>b.category==="transport");$("#transportPanel").innerHTML=buses.length?buses.map(b=>`<div class="transport-row"><div class="route"><strong translate="no">${escapeHTML(b.name)}</strong><small>${escapeHTML(b.routeOrigin||"")} → ${escapeHTML(b.routeDestination||"")}</small></div><div class="transport-cell"><small>ඊළඟ වේලාව</small><strong>${escapeHTML((b.times||[])[0]||"—")}</strong></div><div class="transport-cell"><small>අද තත්ත්වය</small><strong>${escapeHTML(statusName(b.transportStatus))}</strong></div><span class="status ${escapeHTML(b.transportStatus||"running")}">${escapeHTML(statusName(b.transportStatus))}</span></div>`).join(""):'<div class="empty">තවම ප්‍රවාහන තොරතුරු නැහැ.</div>'}
 function renderBrowse(){
  const query=$("#filterQ").value.trim().toLowerCase();
  const category=$("#filterCat").value;
@@ -432,14 +482,14 @@ function resetHomeSEO(){
  const structured=document.getElementById("businessStructuredData");
  if(structured)structured.textContent="{}";
 }
-function detail(id){const b=allPublic().find(x=>String(x.id)===String(id))||state.ownedBusinesses.find(x=>String(x.id)===String(id))||state.adminBusinesses.find(x=>String(x.id)===String(id));if(!b)return;if(b.category==="jobs"){showJobDetail(b);return}updateBusinessSEO(b);const phone=b.phone?`<a href="tel:${escapeHTML(b.phone)}">${escapeHTML(b.phone)}</a>`:"ලබාදී නැත";const wa=b.whatsapp?`<a target="_blank" rel="noopener" href="https://wa.me/${b.whatsapp.replace(/\D/g,"")}">${escapeHTML(b.whatsapp)}</a>`:"ලබාදී නැත";const map=b.address?`<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((b.address||"")+" "+(b.town||"")+" Sri Lanka")}">Google Maps හි බලන්න</a>`:"—";const times=(b.times||[]).map(t=>`<tr><td>${escapeHTML(t)}</td><td>${escapeHTML(b.routeOrigin||"")}</td><td>${escapeHTML(b.routeDestination||"")}</td></tr>`).join("");openModal(`<button class="modal-close" data-action="close-modal">✕</button><div class="detail-top"><div><span class="pill ${b.isDemo?"demo":(b.status==="pending"?"pending":"")}">${b.isDemo?"DEMO":(b.status==="pending"?"අනුමැතිය බලාපොරොත්තුවෙන්":"අනුමතයි")}</span><h1 style="font-size:21px;color:var(--navy);margin:10px 0 4px">${cat(b.category).icon} ${escapeHTML(b.name)}</h1><div class="card-category">${escapeHTML(catName(b.category))} · ${escapeHTML(b.town||"")}, ${escapeHTML(b.district||"")}</div><p class="detail-desc">${escapeHTML(b.description||"")}</p></div></div><div class="detail-grid"><div class="info"><small>දුරකථනය</small><strong>${phone}</strong></div><div class="info"><small>WhatsApp</small><strong>${wa}</strong></div><div class="info"><small>ලිපිනය</small><strong>${escapeHTML(b.address||b.town||"—")}</strong></div><div class="info"><small>විවෘත වේලාවන්</small><strong>${escapeHTML(b.hours||"—")}</strong></div><div class="info"><small>ස්ථානය</small><strong>${map}</strong></div><div class="info"><small>අද තත්ත්වය</small><strong>${b.category==="transport"?escapeHTML(statusName(b.transportStatus)):b.isOpen===false?"වසා ඇත":"විවෘතයි"}</strong></div></div>${b.category==="transport"?`<h3 style="font-size:13px;color:var(--navy);margin:20px 0 4px">🚌 මාර්ගය සහ වේලාවන්</h3><p class="detail-desc">${escapeHTML(b.routeOrigin||"")} → ${escapeHTML(b.routeDestination||"")} ${b.vehicle?" · "+escapeHTML(b.vehicle):""}</p><div class="table-wrap"><table><thead><tr><th>පිටත්වන වේලාව</th><th>ආරම්භය</th><th>ගමනාන්තය</th></tr></thead><tbody>${times||'<tr><td colspan="3">වේලාවන් ඇතුළත් කර නැත.</td></tr>'}</tbody></table></div>`:""}${b.isDemo?'<div class="notice">මෙය Demo තොරතුරකි. සැබෑ ව්‍යාපාරයක් හෝ බස් කාලසටහනක් නොවේ.</div>':""}<div class="form-actions">${b.phone?`<a class="btn btn-primary" href="tel:${escapeHTML(b.phone)}">☎ අමතන්න</a>`:""}${b.whatsapp?`<a class="btn btn-soft" target="_blank" rel="noopener" href="https://wa.me/${b.whatsapp.replace(/\D/g,"")}">WhatsApp</a>`:""}<button class="btn btn-light" data-action="share-detail" data-id="${escapeHTML(b.id)}">Share Profile</button></div>`)}
+function detail(id){const b=allPublic().find(x=>String(x.id)===String(id))||state.ownedBusinesses.find(x=>String(x.id)===String(id))||state.adminBusinesses.find(x=>String(x.id)===String(id));if(!b)return;if(b.category==="jobs"){showJobDetail(b);return}updateBusinessSEO(b);const phone=b.phone?`<a href="tel:${escapeHTML(b.phone)}">${escapeHTML(b.phone)}</a>`:"ලබාදී නැත";const wa=b.whatsapp?`<a target="_blank" rel="noopener" href="https://wa.me/${b.whatsapp.replace(/\D/g,"")}">${escapeHTML(b.whatsapp)}</a>`:"ලබාදී නැත";const map=b.address?`<a target="_blank" rel="noopener" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((b.address||"")+" "+(b.town||"")+" Sri Lanka")}">Google Maps හි බලන්න</a>`:"—";const times=(b.times||[]).map(t=>`<tr><td>${escapeHTML(t)}</td><td>${escapeHTML(b.routeOrigin||"")}</td><td>${escapeHTML(b.routeDestination||"")}</td></tr>`).join("");openModal(`<button class="modal-close" data-action="close-modal">✕</button><div class="detail-top"><div><span class="pill ${b.isDemo?"demo":(b.status==="pending"?"pending":"")}">${b.isDemo?"DEMO":(b.status==="pending"?"අනුමැතිය බලාපොරොත්තුවෙන්":"අනුමතයි")}</span><h1 style="font-size:21px;color:var(--navy);margin:10px 0 4px">${cat(b.category).icon} ${escapeHTML(b.name)}</h1><div class="card-category">${escapeHTML(catName(b.category))} · ${escapeHTML(b.town||"")}, ${escapeHTML(b.district||"")}</div><p class="detail-desc" translate="no">${escapeHTML(b.description||"")}</p></div></div><div class="detail-grid"><div class="info"><small>දුරකථනය</small><strong>${phone}</strong></div><div class="info"><small>WhatsApp</small><strong>${wa}</strong></div><div class="info"><small>ලිපිනය</small><strong>${escapeHTML(b.address||b.town||"—")}</strong></div><div class="info"><small>විවෘත වේලාවන්</small><strong>${escapeHTML(b.hours||"—")}</strong></div><div class="info"><small>ස්ථානය</small><strong>${map}</strong></div><div class="info"><small>අද තත්ත්වය</small><strong>${b.category==="transport"?escapeHTML(statusName(b.transportStatus)):b.isOpen===false?"වසා ඇත":"විවෘතයි"}</strong></div></div>${b.category==="transport"?`<h3 style="font-size:13px;color:var(--navy);margin:20px 0 4px">🚌 මාර්ගය සහ වේලාවන්</h3><p class="detail-desc" translate="no">${escapeHTML(b.routeOrigin||"")} → ${escapeHTML(b.routeDestination||"")} ${b.vehicle?" · "+escapeHTML(b.vehicle):""}</p><div class="table-wrap"><table><thead><tr><th>පිටත්වන වේලාව</th><th>ආරම්භය</th><th>ගමනාන්තය</th></tr></thead><tbody>${times||'<tr><td colspan="3">වේලාවන් ඇතුළත් කර නැත.</td></tr>'}</tbody></table></div>`:""}${b.isDemo?'<div class="notice">මෙය Demo තොරතුරකි. සැබෑ ව්‍යාපාරයක් හෝ බස් කාලසටහනක් නොවේ.</div>':""}<div class="form-actions">${b.phone?`<a class="btn btn-primary" href="tel:${escapeHTML(b.phone)}">☎ අමතන්න</a>`:""}${b.whatsapp?`<a class="btn btn-soft" target="_blank" rel="noopener" href="https://wa.me/${b.whatsapp.replace(/\D/g,"")}">WhatsApp</a>`:""}<button class="btn btn-light" data-action="share-detail" data-id="${escapeHTML(b.id)}">Share Profile</button></div>`)}
 function showJobDetail(job){
  updateBusinessSEO(job);
  const phone=(job.phone||"").replace(/[^+\d]/g,"");
  const whatsapp=window.normalizeLKPhone?.(job.whatsapp||"")||"";
  const details=[job.company,JOB_TYPES[job.employmentType],job.town,job.district].filter(Boolean).map(escapeHTML).join(" · ");
  const canApply=publiclyVisible(job);
- openModal(`<button class="modal-close" data-action="close-modal" aria-label="වසන්න">✕</button><span class="pill">💼 රැකියා</span><h2>${escapeHTML(job.name)}</h2><p>${details}</p><p class="detail-desc">${escapeHTML(job.description||"")}</p>
+ openModal(`<button class="modal-close" data-action="close-modal" aria-label="වසන්න">✕</button><span class="pill">💼 රැකියා</span><h2 translate="no">${escapeHTML(job.name)}</h2>${job.coverImage?`<img src="${escapeHTML(job.coverImage)}" alt="" style="max-width:100%;max-height:260px">`:""}<p translate="no">${details}</p><p class="detail-desc" translate="no">${escapeHTML(job.description||"")}</p>
  ${job.salaryText?`<p>වැටුප: ${escapeHTML(job.salaryText)}</p>`:""}
  ${job.applicationDeadline?`<p>අයදුම් කරන අවසන් දිනය: ${escapeHTML(job.applicationDeadline)}</p>`:""}
  <div class="job-actions">${canApply&&phone?`<a class="btn btn-primary" href="tel:${escapeHTML(phone)}">දුරකථනයෙන් අයදුම් කරන්න</a>`:""}${canApply&&/^[0-9]{8,15}$/.test(whatsapp)?`<a class="btn btn-light" target="_blank" rel="noopener" href="https://wa.me/${whatsapp}">WhatsApp කරන්න</a>`:""}${canApply?`<button class="btn btn-light" data-share="${escapeHTML(job.id)}">බෙදාගන්න</button>`:""}</div>`);
@@ -462,13 +512,14 @@ function syncListingForm(){
  $("#fDescription").placeholder=job?"කළ යුතු වැඩ සහ අවශ්‍ය සුදුසුකම් ලියන්න":"ඔබේ සේවාවන් සහ විශේෂතා ගැන ලියන්න";
  $("#formTitle").textContent=job?(edit?"රැකියා දැන්වීම වෙනස් කරන්න":"රැකියාවක් එක් කරන්න"):(edit?"ව්‍යාපාර තොරතුරු වෙනස් කරන්න":"ව්‍යාපාරයක් එක් කරන්න");
  $("#formIntro").textContent=job?"රැකියාව, ස්ථානය සහ අයදුම්කරුවන්ට සම්බන්ධ විය හැකි අංකය ඇතුළත් කරන්න.":"ඔබේ ව්‍යාපාරයේ තොරතුරු ඇතුළත් කරන්න.";
- $("#listingNotice").textContent=job?"දැන්වීම සමාලෝචනයට යැවීම නොමිලේ. පළ කරන කාලය Admin තීරණය කරයි. ගෙවීම් සහිත මාසික ගාස්තුව රු.300යි.":"දැන්වීම Admin සමාලෝචනයට යවයි. මාසික ගාස්තුව රු.500යි.";
+ $("#listingNotice").textContent=paymentNotice(category);
  $("#listingForm").querySelector('[type="submit"]').textContent=edit?"වෙනස්කම් සුරකින්න":"සමාලෝචනයට යවන්න";
 }
 function newBusiness(category=""){
  if(!state.user){state.afterLogin=category||null;showAuth();return}
  state.editingId=null;
  $("#listingForm").reset();
+ resetListingPhoto();
  $("#listingFeedback").textContent="";
  $("#fCategory").disabled=false;
  $("#fCategory").value=category;
@@ -476,10 +527,11 @@ function newBusiness(category=""){
  go("form");
 }
 function editBusiness(id){
- const listing=state.ownedBusinesses.find(b=>String(b.id)===String(id));
+ const listing=(state.profile?.role==="admin"?state.adminBusinesses:state.ownedBusinesses).find(b=>String(b.id)===String(id));
  if(!listing) return;
  state.editingId=id;
  $("#listingForm").reset();
+ resetListingPhoto(listing.coverImage);
  $("#listingFeedback").textContent="";
  const fields={fName:"name",fCategory:"category",fPhone:"phone",fWhatsapp:"whatsapp",fDistrict:"district",fTown:"town",fAddress:"address",fDescription:"description",fOpen:"isOpen",fHours:"hours",fOrigin:"routeOrigin",fDestination:"routeDestination",fVehicle:"vehicle",fVehicleNo:"vehicleNo",fTimes:"times",fTransportStatus:"transportStatus",jobCompany:"company",jobType:"employmentType",jobDeadline:"applicationDeadline",jobSalary:"salaryText"};
  for(const [id,key] of Object.entries(fields)){
@@ -503,12 +555,97 @@ function formData(){
  }
  return data;
 }
+let listingPhoto={};
+let photoGeneration=0;
+let photoPreviewUrl;
+function renderListingPhoto(source){
+ if(photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+ photoPreviewUrl=source instanceof Blob?URL.createObjectURL(source):null;
+ const image=$("#listingPhotoPreview");
+ const url=photoPreviewUrl||source;
+ image.hidden=!url;
+ if(url) image.src=url;
+ else image.removeAttribute("src");
+ $("#removeListingPhoto").hidden=!url;
+}
+function resetListingPhoto(current=""){
+ photoGeneration++;
+ listingPhoto={current};
+ $("#listingPhoto").value="";
+ $("#listingPhotoStatus").textContent="";
+ renderListingPhoto(current);
+}
+async function prepareListingPhoto(file){
+ if(!["image/jpeg","image/png","image/webp"].includes(file.type)) throw Error("JPG, PNG හෝ WebP ගොනුවක් තෝරන්න.");
+ const objectUrl=URL.createObjectURL(file);
+ try{
+  const image=new Image();
+  image.src=objectUrl;
+  await image.decode();
+  if(file.size<=PHOTO_MAX_BYTES) return file;
+  const canvas=document.createElement("canvas");
+  const ctx=canvas.getContext("2d");
+  let scale=Math.min(1,1600/Math.max(image.width,image.height));
+  while(scale>0.02){
+   canvas.width=Math.max(1,Math.round(image.width*scale));
+   canvas.height=Math.max(1,Math.round(image.height*scale));
+   ctx.fillStyle="white";
+   ctx.fillRect(0,0,canvas.width,canvas.height);
+   ctx.drawImage(image,0,0,canvas.width,canvas.height);
+   for(const quality of [0.86,0.72,0.58]){
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/jpeg",quality));
+    if(blob&&blob.size<=PHOTO_MAX_BYTES) return blob;
+   }
+   scale*=0.72;
+  }
+  throw Error("500 KB ට අඩු කිරීමට නොහැකි වුණා.");
+ }finally{URL.revokeObjectURL(objectUrl)}
+}
+$("#listingPhoto").addEventListener("change",async event=>{
+ const file=event.target.files[0];
+ if(!file) return;
+ const generation=++photoGeneration;
+ listingPhoto.pending=true;
+ listingPhoto.error=false;
+ $("#listingPhotoStatus").textContent="ඡායාරූපය සකස් කරමින්…";
+ try{
+  const blob=await prepareListingPhoto(file);
+  if(generation!==photoGeneration) return;
+  listingPhoto={current:listingPhoto.current,blob};
+  renderListingPhoto(blob);
+  $("#listingPhotoStatus").textContent=Math.ceil(blob.size/1000)+" KB · Upload කිරීමට සූදානම්";
+ }catch(error){
+  if(generation!==photoGeneration) return;
+  listingPhoto.pending=false;
+  listingPhoto.error=true;
+  $("#removeListingPhoto").hidden=false;
+  event.target.value="";
+  $("#listingPhotoStatus").textContent="ඡායාරූපය සකස් කළ නොහැක. JPG, PNG හෝ WebP ඡායාරූපයක් නැවත තෝරන්න.";
+ }
+});
+$("#removeListingPhoto").addEventListener("click",()=>{
+ resetListingPhoto();
+ listingPhoto.remove=true;
+});
+async function uploadListingPhoto(blob,id,photo){
+ if(!photo.path) photo.path=`listingPhotos/${state.user.uid}/${id}/${crypto.randomUUID()}`;
+ const storage=await import("https://www.gstatic.com/firebasejs/13.4.0/firebase-storage.js");
+ const ref=storage.ref(storage.getStorage(state.app),photo.path);
+ await storage.uploadBytes(ref,blob,{contentType:blob.type,cacheControl:"public,max-age=3600"});
+ const url=await storage.getDownloadURL(ref);
+ return {coverImage:url,coverImagePath:photo.path};
+}
 async function saveBusiness(event){
  event.preventDefault();
  const form=event.target;
  const button=form.querySelector('[type="submit"]');
  const feedback=$("#listingFeedback");
  if(button.disabled) return;
+ if(listingPhoto.pending||listingPhoto.error){
+  feedback.dataset.error="true";
+  feedback.textContent="ඡායාරූපය සකස් වන තුරු රැඳී සිටින්න, නැත්නම් වලංගු ඡායාරූපයක් තෝරන්න.";
+  return;
+ }
  if(!state.firebase||!state.authReady||!state.user){
   feedback.dataset.error="true";
   feedback.textContent="සුරැකීමට Online සම්බන්ධතාව සහ HOYA ගිණුම අවශ්‍යයි. ඇතුළත් කළ විස්තර මෙතැන තියෙනවා.";
@@ -530,12 +667,18 @@ async function saveBusiness(event){
  const editingId=state.editingId;
  const ownerId=state.user.uid;
  try{
-  const {collection,doc,addDoc,updateDoc,serverTimestamp}=sdk.fs;
-  const fields={...data,status:"pending",updatedAt:serverTimestamp()};
+  const {collection,doc,setDoc,updateDoc,serverTimestamp}=sdk.fs;
+  const photo=listingPhoto;
+  const ref=editingId?doc(state.db,"businesses",editingId):(photo.documentRef??=doc(collection(state.db,"businesses")));
+  const fields={...data,updatedAt:serverTimestamp()};
+  if(!editingId||state.profile?.role!=="admin") fields.status="pending";
+  if(photo.blob) Object.assign(fields,await uploadListingPhoto(photo.blob,ref.id,photo));
+  else if(photo.remove) Object.assign(fields,{coverImage:"",coverImagePath:""});
+  if(state.user?.uid!==ownerId) throw Error("ගිණුම වෙනස් වී ඇත.");
   if(editingId){
-   await updateDoc(doc(state.db,"businesses",editingId),fields);
+   await updateDoc(ref,fields);
   }else{
-   await addDoc(collection(state.db,"businesses"),{...fields,ownerId,subscriptionStatus:"pending",subscriptionAmount:subscriptionPrice(data.category),plan:"monthly",subscriptionExpiry:null,featured:false,verified:false,createdAt:serverTimestamp()});
+   await setDoc(ref,{...fields,ownerId,subscriptionStatus:"pending",subscriptionAmount:subscriptionPrice(data.category),plan:"monthly",subscriptionExpiry:null,featured:false,verified:false,createdAt:serverTimestamp()});
   }
  }catch(error){
   console.error("Saving HOYA listing failed",error.code);
@@ -546,27 +689,71 @@ async function saveBusiness(event){
  }
  state.editingId=null;
  form.reset();
- feedback.textContent="දැන්වීම සුරැකුවා. Admin සමාලෝචනයට යොමු කළා.";
+ resetListingPhoto();
+ feedback.textContent=editingId&&state.profile?.role==="admin"?"වෙනස්කම් සුරැකුවා.":"දැන්වීම සුරැකුවා. Admin සමාලෝචනයට යොමු කළා.";
  try{
   await refreshData();
   if(state.user?.uid===ownerId&&$("#form").classList.contains("active")) go("dashboard");
-  toast("දැන්වීම සුරැකුවා. සමාලෝචන තත්ත්වය My Dashboard එකෙන් බලන්න.");
+  toast("දැන්වීම සුරැකුවා. තත්ත්වය My Dashboard එකෙන් බලන්න.");
  }catch(error){
   console.error("Refreshing saved HOYA listing failed",error.code);
   feedback.textContent="දැන්වීම සුරැකුවා. My Dashboard එකෙහි අලුත් තත්ත්වය බලන්න පිටුව නැවත load කරන්න.";
  }finally{button.disabled=false}
 }
-async function requestPayment(businessId){const b=state.ownedBusinesses.find(x=>String(x.id)===String(businessId));if(!b)return;const amount=subscriptionPrice(b.category);if(state.paymentRequests.some(p=>p.businessId===b.id&&p.status==="pending")){toast("මේ දැන්වීම සඳහා ගෙවීම් ඉල්ලීමක් දැනටමත් සමාලෝචනය වෙමින් පවතී.");return}openModal(`<button class="modal-close" data-action="close-modal">✕</button><h2>රු.${amount} මාසික Subscription - BOC: Nimantha Sandaruwan - 86837138 - 28ට කලින් ගෙවන්න</h2><p>${escapeHTML(b.name)} සඳහා මාසික ලැයිස්තුගත කිරීමේ ගෙවීම තහවුරු කිරීමට ඉල්ලීමක් යවන්න. මෙය දැනට Manual Payment Review ක්‍රමයකි; Online Payment Gateway එකක් සම්බන්ධ කර නැත.</p><div class="price-card"><div><strong>රු.${amount} - 28ට කලින් ගෙවන්න</strong><small>දින 30ක Subscription එකක් සඳහා</small></div><span>HOYA Monthly</span></div><form id="paymentForm" style="margin-top:14px"><div class="field"><label>ගෙවූ ක්‍රමය</label><select class="control" id="payMethod"><option>Bank Transfer</option><option>Cash / Direct</option><option>Other</option></select></div><div class="field" style="margin-top:10px"><label>Payment Reference / Slip Number</label><input class="control" id="payRef" required placeholder="ගනුදෙනු අංකය හෝ reference"></div><div class="field" style="margin-top:10px"><label>අමතර සටහන</label><textarea class="control" id="payNote"></textarea></div><button class="btn btn-primary" style="margin-top:13px" type="submit">Payment Review ඉල්ලීම යවන්න</button></form>`);$("#paymentForm").addEventListener("submit",async e=>{e.preventDefault();try{const request={ownerId:state.user.uid,businessId:b.id,businessName:b.name,amount,method:$("#payMethod").value,reference:$("#payRef").value.trim(),note:$("#payNote").value.trim(),status:"pending",createdAt:new Date().toISOString()};if(state.firebase){await sdk.fs.addDoc(sdk.fs.collection(state.db,"paymentRequests"),{...request,createdAt:sdk.fs.serverTimestamp()})}else{const arr=localPayments();arr.unshift({...request,id:"local-pay-"+Date.now()});localSet("hoya_local_payments",arr)}closeModal();await refreshData();renderDashboard();toast("Payment Review ඉල්ලීම යැව්වා.")}catch(err){toast("Payment request යැවීමට නොහැකි වුණා: "+err.message)}})}
+async function requestPayment(businessId){
+ const listing=state.ownedBusinesses.find(b=>b.id===businessId);
+ if(!listing||!state.firebase||!state.user) return;
+ if(state.paymentRequests.some(p=>p.businessId===listing.id&&p.status==="pending")){
+  toast("මේ දැන්වීමේ ගෙවීම දැනටමත් තහවුරු කරමින් පවතී.");
+  return;
+ }
+ const amount=subscriptionPrice(listing.category);
+ openModal(`<button class="modal-close" data-action="close-modal" aria-label="වසන්න">✕</button>
+ <h2>බැංකු මාරුවෙන් ගෙවන්න</h2><p translate="no">${escapeHTML(listing.name)}</p>
+ <div class="hoya-payment" translate="no"><ol>
+  <li><strong>රු.${amount}</strong> පහත ගිණුමට බැර කරන්න.<br>${escapeHTML(BANK.bank)} · ${escapeHTML(BANK.name)}<br><strong id="hoyaBankAccount">${escapeHTML(BANK.account)}</strong> <button class="btn btn-light" type="button" id="copyBankAccount">Copy</button></li>
+  <li>ගනුදෙනුවේ reference number එක පහළින් ඇතුළත් කරන්න.</li>
+  <li>ඉල්ලීම යවන්න. Admin ගෙවීම තහවුරු කළාම දින 30ක කාලය ක්‍රියාත්මක වේ.</li>
+ </ol></div>
+ <form id="paymentForm">
+  <label for="payRef">ගනුදෙනු අංකය</label><input class="control" id="payRef" required maxlength="100">
+  <label for="payNote">අමතර සටහන</label><textarea class="control" id="payNote" maxlength="300"></textarea>
+  <p id="paymentFeedback" role="status"></p><button class="btn btn-primary hoya-owner-pay" type="submit">ගෙවීම තහවුරු කිරීමට යවන්න</button>
+ </form>`);
+ $("#copyBankAccount").addEventListener("click",async()=>{
+  try{await navigator.clipboard.writeText(BANK.account);$("#paymentFeedback").textContent="ගිණුම් අංකය copy කළා."}
+  catch{$("#paymentFeedback").textContent="ගිණුම් අංකය: "+BANK.account}
+ });
+ $("#paymentForm").addEventListener("submit",async event=>{
+  event.preventDefault();
+  const button=event.target.querySelector('[type="submit"]');
+  const message=$("#paymentFeedback");
+  const reference=$("#payRef").value.trim();
+  if(button.disabled||!reference) return;
+  button.disabled=true;
+  try{
+   await sdk.fs.addDoc(sdk.fs.collection(state.db,"paymentRequests"),{ownerId:state.user.uid,businessId:listing.id,businessName:listing.name,amount,method:"Bank Transfer",reference,note:$("#payNote").value.trim(),status:"pending",createdAt:sdk.fs.serverTimestamp()});
+   closeModal();
+   toast("ගෙවීම් ඉල්ලීම ලැබුණා. Admin තහවුරු කිරීම බලාපොරොත්තු වන්න.");
+  }catch(error){
+   message.textContent="ඉල්ලීම යැවීමට නොහැකි වුණා. නැවත උත්සාහ කරන්න.";
+   button.disabled=false;
+   return;
+  }
+  try{await refreshData();renderDashboard()}catch(error){console.error("Refreshing payments failed",error.code)}
+ });
+}
 async function refreshData(){
  if(state.firebase){
   const {collection,getDocs,query,where,limit}=sdk.fs;
   const publicSnap=await getDocs(query(collection(state.db,"businesses"),where("status","==","approved"),where("subscriptionStatus","==","active"),limit(250)));
   state.publicBusinesses=publicSnap.docs.map(d=>({id:d.id,...d.data()}));
+  queueExpiryRefresh();
   if(state.user){
    const ownSnap=await getDocs(query(collection(state.db,"businesses"),where("ownerId","==",state.user.uid),limit(100)));
    state.ownedBusinesses=ownSnap.docs.map(d=>({id:d.id,...d.data()}));
    if(state.profile?.role==="admin"){
-    const allSnap=await getDocs(query(collection(state.db,"businesses"),limit(500)));
+    const allSnap=await getDocs(collection(state.db,"businesses"));
     state.adminBusinesses=allSnap.docs.map(d=>({id:d.id,...d.data()}));
     const paySnap=await getDocs(query(collection(state.db,"paymentRequests"),limit(500)));
     state.paymentRequests=paySnap.docs.map(d=>({id:d.id,...d.data()}));
@@ -594,13 +781,13 @@ async function refreshData(){
   detail(deepLinkId);
  }
 }
-function renderDashboard(){const el=$("#dashboardContent");if(!state.user){el.innerHTML=`<div style="text-align:center;padding:24px"><h2>HOYA Account</h2><p style="font-size:10px;color:var(--muted)">ව්‍යාපාරයක් එක් කිරීමට Login හෝ Register වන්න.</p><button class="btn btn-primary" data-action="account">Login / Register</button></div>`;return}if(state.profile?.role==="admin"){renderAdminDashboard();return}if(state.profile?.role==="manager"){renderManagerDashboard();return}const arr=state.ownedBusinesses;const active=arr.filter(b=>publiclyVisible(b)).length;el.innerHTML=`<div class="dashboard-top"><div><span class="pill">BUSINESS OWNER</span><h2>ආයුබෝවන්, ${escapeHTML(state.profile?.displayName||state.user.email||"Owner")}</h2><p>${escapeHTML(state.user.email||"")}</p></div><div class="form-actions"><button class="btn btn-primary" data-action="add-business">+ ව්‍යාපාරයක් එක් කරන්න</button><button class="btn btn-light" data-action="logout">Logout</button></div></div><div class="stats"><div class="stat"><small>ඔබේ ව්‍යාපාර</small><strong>${arr.length}</strong></div><div class="stat"><small>අනුමත / Active</small><strong>${active}</strong></div><div class="stat"><small>අනුමැතිය බලාපොරොත්තුවෙන්</small><strong>${arr.filter(b=>b.status==="pending").length}</strong></div><div class="stat"><small>Payment Requests</small><strong>${state.paymentRequests.length}</strong></div></div><h3 style="font-size:12px;color:var(--navy)">ඔබේ ව්‍යාපාර කළමනාකරණය</h3>${arr.length?arr.map(b=>`<div class="manage-item"><div><strong>${escapeHTML(b.name)}</strong><small>${escapeHTML(catName(b.category))} · ${escapeHTML(b.town||b.district||"")} · ${b.status==="approved"?"අනුමතයි":b.status==="rejected"?"ප්‍රතික්ෂේපයි":"අනුමැතිය බලාපොරොත්තුවෙන්"} · Subscription: ${escapeHTML(b.subscriptionStatus||"pending")}</small>${b.status==="rejected"&&b.rejectionReason?`<small>හේතුව: ${escapeHTML(b.rejectionReason)}</small>`:""}</div><div class="manage-actions"><button class="btn btn-light" data-edit="${escapeHTML(b.id)}">Edit</button><button class="btn btn-soft" data-toggle-open="${escapeHTML(b.id)}">${b.category==="jobs"?(b.isOpen===false?"අයදුම් නැවත විවෘත කරන්න":"අයදුම් භාර ගැනීම වසන්න"):(b.isOpen===false?"වසා ඇත":"විවෘතයි")+" / වෙනස් කරන්න"}</button>${b.category==="transport"?`<button class="btn btn-light" data-transport-status="${escapeHTML(b.id)}">Transport Update</button>`:""}<button class="btn btn-primary" data-pay="${escapeHTML(b.id)}">රු.${subscriptionPrice(b.category)} ගෙවීම</button></div></div>`).join(""):'<div class="empty">ඔබ තවම ව්‍යාපාරයක් එක් කර නැහැ.</div>'}<h3 style="font-size:12px;color:var(--navy);margin-top:22px">ගෙවීම් තත්ත්වය</h3>${state.paymentRequests.length?state.paymentRequests.map(p=>`<div class="manage-item"><div><strong>${escapeHTML(p.businessName||"Business")} — රු.${p.amount||500}</strong><small>${escapeHTML(p.method||"")} · Ref: ${escapeHTML(p.reference||"")}</small></div><span class="pill ${p.status==="approved"?"":"pending"}">${p.status==="approved"?"Approved":p.status==="rejected"?"Rejected":"Pending"}</span></div>`).join(""):'<p style="font-size:9px;color:var(--muted)">තවම Payment Request නැහැ.</p>'}<div class="notice">අදාළ මාසික ගාස්තුව සඳහා Payment Reference එකක් යවා Admin තහවුරු කිරීම බලාපොරොත්තු වන්න. මෙම Starter Version එකේ Payment Gateway Auto-charge සම්බන්ධ කර නැත.</div>`}
+function renderDashboard(){const el=$("#dashboardContent");if(!state.user){el.innerHTML=`<div style="text-align:center;padding:24px"><h2>HOYA Account</h2><p style="font-size:10px;color:var(--muted)">ව්‍යාපාරයක් එක් කිරීමට Login හෝ Register වන්න.</p><button class="btn btn-primary" data-action="account">Login / Register</button></div>`;return}if(state.profile?.role==="admin"){renderAdminDashboard();return}if(state.profile?.role==="manager"){renderManagerDashboard();return}const arr=state.ownedBusinesses;const active=arr.filter(b=>publiclyVisible(b)).length;el.innerHTML=`<div class="dashboard-top"><div><span class="pill">BUSINESS OWNER</span><h2>ආයුබෝවන්, ${escapeHTML(state.profile?.displayName||state.user.email||"Owner")}</h2><p>${escapeHTML(state.user.email||"")}</p></div><div class="form-actions"><button class="btn btn-primary" data-action="add-business">+ ව්‍යාපාරයක් එක් කරන්න</button><button class="btn btn-light" data-action="logout">Logout</button></div></div><div class="stats"><div class="stat"><small>ඔබේ ව්‍යාපාර</small><strong>${arr.length}</strong></div><div class="stat"><small>අනුමත / Active</small><strong>${active}</strong></div><div class="stat"><small>අනුමැතිය බලාපොරොත්තුවෙන්</small><strong>${arr.filter(b=>b.status==="pending").length}</strong></div><div class="stat"><small>Payment Requests</small><strong>${state.paymentRequests.length}</strong></div></div><h3 style="font-size:12px;color:var(--navy)">ඔබේ ව්‍යාපාර කළමනාකරණය</h3>${arr.length?arr.map(b=>`<div class="manage-item"><div><strong translate="no">${escapeHTML(b.name)}</strong><small>${escapeHTML(catName(b.category))} · ${escapeHTML(b.town||b.district||"")} · ${b.status==="approved"?"අනුමතයි":b.status==="rejected"?"ප්‍රතික්ෂේපයි":"අනුමැතිය බලාපොරොත්තුවෙන්"} · ${publiclyVisible(b)?"පළ කර ඇත":b.status==="approved"?"තාවකාලිකව නොපෙන්වයි":"පළ කර නැත"}${Number.isFinite(expiryTime(b))?` · අවසන් දිනය: ${escapeHTML(new Date(expiryTime(b)).toLocaleString("en-LK",{timeZone:"Asia/Colombo"}))}`:""}</small>${b.status==="rejected"&&b.rejectionReason?`<small>හේතුව: ${escapeHTML(b.rejectionReason)}</small>`:""}</div><div class="manage-actions"><button class="btn btn-light" data-edit="${escapeHTML(b.id)}">Edit</button><button class="btn btn-soft" data-toggle-open="${escapeHTML(b.id)}">${b.category==="jobs"?(b.isOpen===false?"අයදුම් නැවත විවෘත කරන්න":"අයදුම් භාර ගැනීම වසන්න"):(b.isOpen===false?"වසා ඇත":"විවෘතයි")+" / වෙනස් කරන්න"}</button>${b.category==="transport"?`<button class="btn btn-light" data-transport-status="${escapeHTML(b.id)}">Transport Update</button>`:""}<button class="btn btn-primary hoya-owner-pay" data-pay="${escapeHTML(b.id)}">රු.${subscriptionPrice(b.category)} ගෙවීම</button></div></div>`).join(""):'<div class="empty">ඔබ තවම ව්‍යාපාරයක් එක් කර නැහැ.</div>'}<h3 style="font-size:12px;color:var(--navy);margin-top:22px">ගෙවීම් තත්ත්වය</h3>${state.paymentRequests.length?state.paymentRequests.map(p=>`<div class="manage-item"><div><strong>${escapeHTML(p.businessName||"Business")} — රු.${p.amount||500}</strong><small>${escapeHTML(p.method||"")} · Ref: ${escapeHTML(p.reference||"")}</small></div><span class="pill ${p.status==="approved"?"":"pending"}">${p.status==="approved"?"Approved":p.status==="rejected"?"Rejected":"Pending"}</span></div>`).join(""):'<p style="font-size:9px;color:var(--muted)">තවම Payment Request නැහැ.</p>'}<div class="notice">අදාළ මාසික ගාස්තුව සඳහා Payment Reference එකක් යවා Admin තහවුරු කිරීම බලාපොරොත්තු වන්න. මෙම Starter Version එකේ Payment Gateway Auto-charge සම්බන්ධ කර නැත.</div>`}
 function renderManagerDashboard(){
  const arr=state.managedBusinesses;
  const categoryLabel=catName(state.profile?.managedCategory||"other");
- $("#dashboardContent").innerHTML=`<div class="dashboard-top"><div><span class="pill">CATEGORY MANAGER</span><h2>${escapeHTML(categoryLabel)} Manager</h2><p>${escapeHTML(state.user?.email||"")} · මෙම කාණ්ඩයේ තොරතුරු පමණක් කළමනාකරණය කරන්න.</p></div><button class="btn btn-light" data-action="logout">Logout</button></div><div class="stats"><div class="stat"><small>ඔබට අයත් කාණ්ඩයේ ලැයිස්තු</small><strong>${arr.length}</strong></div><div class="stat"><small>විවෘතයි</small><strong>${arr.filter(b=>b.isOpen!==false).length}</strong></div><div class="stat"><small>වසා ඇත</small><strong>${arr.filter(b=>b.isOpen===false).length}</strong></div><div class="stat"><small>Transport</small><strong>${arr.filter(b=>b.category==="transport").length}</strong></div></div>${arr.length?arr.map(b=>`<div class="manage-item"><div><strong>${escapeHTML(b.name)}</strong><small>${escapeHTML(b.town||b.district||"")} · ${b.status==="approved"?"අනුමතයි":b.status==="pending"?"Pending":"Rejected"}</small></div><div class="manage-actions"><button class="btn btn-soft" data-toggle-open="${escapeHTML(b.id)}">Open / Close</button>${b.category==="transport"?`<button class="btn btn-light" data-transport-status="${escapeHTML(b.id)}">වේලාව / තත්ත්වය Update</button>`:""}</div></div>`).join(""):'<div class="empty">මෙම කාණ්ඩයට තවම ව්‍යාපාර නැහැ.</div>'}<div class="notice">Category Manager හට තමන්ට පැවරූ කාණ්ඩයේ දෛනික තත්ත්වය සහ අදාළ ප්‍රවාහන වේලාවන් පමණක් වෙනස් කළ හැකියි. Approval සහ Payment පාලනය Super Admin සතුයි.</div>`;
+ $("#dashboardContent").innerHTML=`<div class="dashboard-top"><div><span class="pill">CATEGORY MANAGER</span><h2>${escapeHTML(categoryLabel)} Manager</h2><p>${escapeHTML(state.user?.email||"")} · මෙම කාණ්ඩයේ තොරතුරු පමණක් කළමනාකරණය කරන්න.</p></div><button class="btn btn-light" data-action="logout">Logout</button></div><div class="stats"><div class="stat"><small>ඔබට අයත් කාණ්ඩයේ ලැයිස්තු</small><strong>${arr.length}</strong></div><div class="stat"><small>විවෘතයි</small><strong>${arr.filter(b=>b.isOpen!==false).length}</strong></div><div class="stat"><small>වසා ඇත</small><strong>${arr.filter(b=>b.isOpen===false).length}</strong></div><div class="stat"><small>Transport</small><strong>${arr.filter(b=>b.category==="transport").length}</strong></div></div>${arr.length?arr.map(b=>`<div class="manage-item"><div><strong translate="no">${escapeHTML(b.name)}</strong><small>${escapeHTML(b.town||b.district||"")} · ${b.status==="approved"?"අනුමතයි":b.status==="pending"?"Pending":"Rejected"}</small></div><div class="manage-actions"><button class="btn btn-soft" data-toggle-open="${escapeHTML(b.id)}">Open / Close</button>${b.category==="transport"?`<button class="btn btn-light" data-transport-status="${escapeHTML(b.id)}">වේලාව / තත්ත්වය Update</button>`:""}</div></div>`).join(""):'<div class="empty">මෙම කාණ්ඩයට තවම ව්‍යාපාර නැහැ.</div>'}<div class="notice">Category Manager හට තමන්ට පැවරූ කාණ්ඩයේ දෛනික තත්ත්වය සහ අදාළ ප්‍රවාහන වේලාවන් පමණක් වෙනස් කළ හැකියි. Approval සහ Payment පාලනය Super Admin සතුයි.</div>`;
 }
-function renderAdminDashboard(){const arr=state.adminBusinesses,pays=state.paymentRequests;$("#dashboardContent").innerHTML=`<div class="dashboard-top"><div><span class="pill">SUPER ADMIN</span><h2>HOYA Administration</h2><p>ව්‍යාපාර අනුමැතිය, Subscription සහ Payment Requests කළමනාකරණය.</p></div><button class="btn btn-light" data-action="logout">Logout</button></div><div class="stats"><div class="stat"><small>සියලු ව්‍යාපාර</small><strong>${arr.length}</strong></div><div class="stat"><small>අනුමැතිය බලාපොරොත්තුවෙන්</small><strong>${arr.filter(b=>b.status==="pending").length}</strong></div><div class="stat"><small>Approved</small><strong>${arr.filter(b=>b.status==="approved").length}</strong></div><div class="stat"><small>Payment Requests</small><strong>${pays.length}</strong></div></div><div class="tabs"><button class="tab active" data-admin-tab="business">ව්‍යාපාර</button><button class="tab" data-admin-tab="payments">Payments</button><button class="tab" data-admin-tab="update">Update / Publish</button></div><div id="adminTabContent"></div>`;selectAdminTab(state.adminTab||"business")}
+function renderAdminDashboard(){const arr=state.adminBusinesses,pays=state.paymentRequests;$("#dashboardContent").innerHTML=`<div class="dashboard-top"><div><span class="pill">SUPER ADMIN</span><h2>HOYA Administration</h2><p>ව්‍යාපාර අනුමැතිය, Subscription සහ Payment Requests කළමනාකරණය.</p></div><button class="btn btn-light" data-action="logout">Logout</button></div><div class="hoya-admin-controls"><button class="btn btn-primary hoya-admin-add" data-action="add-job">+ Job එකක් එක් කරන්න</button><button class="btn btn-light" data-action="add-business">+ සේවාවක් එක් කරන්න</button></div><div class="stats"><div class="stat"><small>සියලු ව්‍යාපාර</small><strong>${arr.length}</strong></div><div class="stat"><small>අනුමැතිය බලාපොරොත්තුවෙන්</small><strong>${arr.filter(b=>b.status==="pending").length}</strong></div><div class="stat"><small>Approved</small><strong>${arr.filter(b=>b.status==="approved").length}</strong></div><div class="stat"><small>Payment Requests</small><strong>${pays.length}</strong></div></div><div class="tabs"><button class="tab active" data-admin-tab="business">ව්‍යාපාර</button><button class="tab" data-admin-tab="payments">Payments</button><button class="tab" data-admin-tab="update">Update / Publish</button></div><div id="adminTabContent"></div>`;selectAdminTab(state.adminTab||"business")}
 function selectAdminTab(tab){
  if(state.profile?.role!=="admin"||!$("#adminTabContent")) return;
  state.adminTab=tab;
@@ -641,10 +828,11 @@ function renderPublishRows(){
   const confirmed=b.plan==="monthly"&&b.subscriptionStatus==="active"&&expiry>Date.now();
   const pending=state.paymentRequests.find(p=>p.businessId===b.id&&p.status==="pending");
   const label=b.category==="jobs"&&b.isOpen===false?"අයදුම් භාර ගැනීම වසා ඇත":visible?(b.plan==="temporary"?"තාවකාලිකව පළ කර ඇත":"පළ කර ඇත"):b.status==="rejected"?"ප්‍රතික්ෂේප කර ඇත":expiry<=Date.now()?"කාලය අවසන්":"පළ කර නැත";
-  return `<div class="manage-item"><div><strong>${escapeHTML(b.name)}</strong><small>${escapeHTML(catName(b.category))} · ${escapeHTML(b.town||b.district||"")}</small><span class="hoya-state">${label}</span>${Number.isFinite(expiry)?`<small>අවසන් දිනය: ${escapeHTML(new Date(expiry).toLocaleString("en-LK",{timeZone:"Asia/Colombo"}))}</small>`:""}${pending?`<small>ගෙවීම් ඉල්ලීම: රු.${escapeHTML(pending.amount)} · Ref: ${escapeHTML(pending.reference||"—")}</small>`:""}</div>
+  return `<div class="manage-item"><div><strong translate="no">${escapeHTML(b.name)}</strong><small>${escapeHTML(catName(b.category))} · ${escapeHTML(b.town||b.district||"")}</small><span class="hoya-state">${label}</span>${Number.isFinite(expiry)?`<small>අවසන් දිනය: ${escapeHTML(new Date(expiry).toLocaleString("en-LK",{timeZone:"Asia/Colombo"}))}</small>`:""}${pending?`<small>ගෙවීම් ඉල්ලීම: රු.${escapeHTML(pending.amount)} · Ref: ${escapeHTML(pending.reference||"—")}</small>`:""}</div>
    <div class="manage-actions">
     ${!confirmed&&(!visible||b.plan==="temporary")?`<button class="btn hoya-preview" data-publish="temporary" data-listing="${id}">තාවකාලිකව පළ කරන්න</button>`:""}
     ${b.category==="jobs"&&!b.freeLaunchUsed&&!confirmed?`<button class="btn btn-soft" data-publish="launch" data-listing="${id}">මුල් Jobs 30 · දින 30 නොමිලේ</button>`:""}
+    <button class="btn btn-light" data-edit="${id}">Edit</button>
     <button class="btn btn-light" data-publish="history" data-listing="${id}">ඉතිහාසය</button>
     ${pending?`<button class="btn btn-primary" data-payment-approve="${escapeHTML(pending.id)}">ගෙවීම තහවුරු කර පළ කරන්න</button>`:""}
     ${!visible&&confirmed?`<button class="btn btn-primary" data-publish="resume" data-listing="${id}">නැවත පළ කරන්න</button>`:""}
@@ -713,7 +901,7 @@ async function refreshAdminAfterWrite(){
   toast("වෙනස සුරැකුවා. අලුත් තත්ත්වය බලන්න පිටුව නැවත load කරන්න.");
  }
 }
-function adminBusinessRows(arr){return arr.length?arr.map(b=>`<div class="manage-item"><div><strong>${escapeHTML(b.name)}</strong><small>${escapeHTML(catName(b.category))} · ${escapeHTML(b.district||"")} · ${escapeHTML(b.ownerId||"")}</small><small>Status: ${escapeHTML(b.status||"pending")} · Subscription: ${escapeHTML(b.subscriptionStatus||"pending")}</small></div><div class="manage-actions"><button class="btn btn-primary" data-admin-approve="${escapeHTML(b.id)}">Approve</button><button class="btn btn-danger" data-admin-reject="${escapeHTML(b.id)}">Reject</button></div></div>`).join(""):'<div class="empty">ව්‍යාපාර නැහැ.</div>'}
+function adminBusinessRows(arr){return arr.length?arr.map(b=>`<div class="manage-item"><div><strong translate="no">${escapeHTML(b.name)}</strong><small>${escapeHTML(catName(b.category))} · ${escapeHTML(b.district||"")} · ${escapeHTML(b.ownerId||"")}</small><small>Status: ${escapeHTML(b.status||"pending")} · Subscription: ${escapeHTML(b.subscriptionStatus||"pending")}</small></div><div class="manage-actions"><button class="btn btn-primary" data-admin-approve="${escapeHTML(b.id)}">Approve</button><button class="btn btn-danger" data-admin-reject="${escapeHTML(b.id)}">Reject</button></div></div>`).join(""):'<div class="empty">ව්‍යාපාර නැහැ.</div>'}
 function adminPaymentRows(arr){return arr.length?arr.map(p=>`<div class="manage-item"><div><strong>${escapeHTML(p.businessName||"Business")} — රු.${p.amount||500}</strong><small>Ref: ${escapeHTML(p.reference||"")} · ${escapeHTML(p.method||"")}</small><small>Business ID: ${escapeHTML(p.businessId||"")} · Status: ${escapeHTML(p.status||"pending")}</small></div><div class="manage-actions"><button class="btn btn-primary" data-payment-approve="${escapeHTML(p.id)}">Payment Confirm</button><button class="btn btn-danger" data-payment-reject="${escapeHTML(p.id)}">Reject</button></div></div>`).join(""):'<div class="empty">Payment Requests නැහැ.</div>'}
 async function adminBusinessAction(id,status,reason=""){
  if(!state.firebase||state.profile?.role!=="admin"||!["approved","rejected"].includes(status)) return false;
@@ -723,7 +911,8 @@ async function adminBusinessAction(id,status,reason=""){
    const listing=doc(state.db,"businesses",id);
    const snapshot=await transaction.get(listing);
    if(!snapshot.exists()) throw new Error("දැන්වීම හමු නොවුණා.");
-   transaction.update(listing,{status,rejectionReason:status==="rejected"?reason:"",updatedAt:serverTimestamp()});
+   const trial=status==="approved"?firstApproval(snapshot.data()):{};
+   transaction.update(listing,{status,rejectionReason:status==="rejected"?reason:"",...trial,updatedAt:serverTimestamp()});
    writeModerationLog(transaction,id,status,reason);
   });
  }catch(error){toast("වෙනස සුරැකීමට නොහැකි වුණා: "+error.message);return false}
@@ -767,7 +956,7 @@ async function adminPaymentAction(id,status){
      throw new Error("ගෙවූ මුදල වත්මන් ගාස්තුවට ගැළපෙන්නේ නැහැ.");
     }
     const now=Date.now();
-    const paidExpiry=listing.plan==="monthly"?expiryTime(listing):NaN;
+    const paidExpiry=expiryTime(listing);
     const start=paidExpiry>now?paidExpiry:now;
     transaction.update(listingRef,{status:"approved",rejectionReason:"",subscriptionStatus:"active",plan:"monthly",
      subscriptionExpiry:new Date(start+30*DAY_MS).toISOString(),updatedAt:serverTimestamp()});
@@ -836,11 +1025,10 @@ async function registerOrLogin(event) {
   }
   if(form.isConnected) {
    closeModal();
-   if(state.afterLogin==="jobs"&&state.auth.currentUser){
-    state.user=state.auth.currentUser;
-    state.afterLogin=null;
-    newBusiness("jobs");
-   }else go("dashboard");
+   state.user=state.auth.currentUser;
+   if(state.profile?.role==="admin"){state.afterLogin=null;go("dashboard")}
+   else if(state.profile&&state.afterLogin==="jobs"&&state.user){state.afterLogin=null;newBusiness("jobs")}
+   else go("dashboard");
   }
  } catch(error) {
   const messages={
@@ -896,6 +1084,7 @@ async function initOnline(){
   const fsSDK=await import("https://www.gstatic.com/firebasejs/13.4.0/firebase-firestore.js");
 
   const app=appSDK.initializeApp(firebaseConfig);
+  state.app=app;
   state.auth=authSDK.getAuth(app);
   state.db=fsSDK.getFirestore(app);
 
@@ -948,6 +1137,13 @@ async function initOnline(){
      }
      if(state.user?.uid!==user.uid) return;
      state.profile=snapshot.data();
+     if(state.profile?.role==="admin"&&($("#dashboard").classList.contains("active")||state.afterLogin==="jobs")){
+      state.afterLogin=null;
+      go("dashboard");
+     }else if(state.afterLogin==="jobs"&&$("#dashboard").classList.contains("active")){
+      state.afterLogin=null;
+      newBusiness("jobs");
+     }
     } catch(error) {
      console.error("Loading HOYA profile failed",error.code);
      if(state.user?.uid!==user.uid) return;
@@ -1018,6 +1214,11 @@ window.allPublic = function(){ if(state && state.firebase) return _allPublic(); 
 // HOYA Trilingual Patch - Sinhala (default) / English / Tamil
 (function(){
   var DICT = {
+    "ප්‍රධාන ඡායාරූපය": {en:"Cover photo",ta:"முகப்புப் படம்"},
+    "බැංකු මාරුවෙන් ගෙවන්න": {en:"Pay by bank transfer",ta:"வங்கிப் பரிமாற்றம் மூலம் செலுத்துங்கள்"},
+    "ගනුදෙනු අංකය": {en:"Transaction reference",ta:"பரிவர்த்தனை இலக்கம்"},
+    "අමතර සටහන": {en:"Additional note",ta:"கூடுதல் குறிப்பு"},
+    "ගෙවීම තහවුරු කිරීමට යවන්න": {en:"Submit payment for verification",ta:"பணத்தை உறுதிப்படுத்த அனுப்புங்கள்"},
     "මුල් පිටුව": {en:"Home", ta:"முகப்பு"},
     "සොයන්න": {en:"Search", ta:"தேடுக"},
     "ව්‍යාපාරයක් එක් කරන්න": {en:"Add Business", ta:"வணிகத்தை சேர்க்கவும்"},
@@ -1066,12 +1267,12 @@ window.allPublic = function(){ if(state && state.firebase) return _allPublic(); 
   window.__hoyaSetLang = setLang;
   window.__hoyaGetLang = getLang;
   function translateNode(node, lang){
-    if(lang==="si") return; // Sinhala is the source in HTML
-    var t = node.nodeValue; if(!t) return; var key = t.trim(); if(!key) return;
-    var entry = DICT[key] || PLACEHOLDER[key];
-    if(entry && entry[lang]){ node.nodeValue = node.nodeValue.replace(key, entry[lang]); }
-    // partial: contains phrase
-    if(!entry){ for(var k in DICT){ if(key.indexOf(k)!==-1 && DICT[k][lang]){ node.nodeValue = node.nodeValue.replace(k, DICT[k][lang]); break; } } }
+    if(!node.parentElement||node.parentElement.closest('[translate="no"],script,style,textarea')) return;
+    var original=node.nodeValue;
+    if(!original||!original.trim()) return;
+    var key=original.trim();
+    var entry=DICT[key]||PLACEHOLDER[key];
+    if(entry&&entry[lang]&&entry[lang]!==key) node.nodeValue=original.replace(key,entry[lang]);
   }
   function walkAndTranslate(lang){
     var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
@@ -1284,7 +1485,7 @@ document.addEventListener('click', function(e){
 
 <!-- HOYA ALL UPDATES - Admin 250 / Moderator 250, BOC, Jobs 300, Sales 500, Ads 800, District>Area, Publish/Unpublish, WhatsApp Notify -->
 <div style="background:#fff3cd;border:1px solid #ffe08a;padding:10px 14px;text-align:center;font-size:13px;margin:10px auto;max-width:1100px;border-radius:10px">
-  📝 <strong>උඩුගත කිරීම නොමිලේ.</strong> &nbsp; 💰 ගෙවීම: <strong>සෑම මසකම 28ට කලින්</strong> &nbsp; Jobs Rs.300 | ව්‍යාපාර / Sales Rs.500 | Ads 3x3 Rs.800 - දින 28ක් &nbsp; BOC - Nimantha Sandaruwan - 86837138
+  📝 <strong>උඩුගත කිරීම නොමිලේ.</strong> &nbsp; 💰 ගෙවීම: <strong>සෑම මසකම නොමිලේ කාලය අවසන් වීමට පෙර</strong> &nbsp; Jobs Rs.300 | ව්‍යාපාර / Sales Rs.500 | Ads 3x3 Rs.800 - දින 28ක් &nbsp; BOC - Nimantha Sandaruwan - 86837138
 </div>
 <div style="background:#e6ffe6;border:1px solid #a8e6a8;padding:10px 14px;text-align:center;font-size:13px;margin:10px auto;max-width:1100px;border-radius:10px">
   📱 Payment නැති බව WhatsApp එකෙන් දැනුම් දෙන්න පුළුවන් - Admin Dashboard එකේ “WhatsApp දැනුම් දෙන්න” Click කරන්න.
@@ -1340,7 +1541,7 @@ window.HOYA_DISTRICTS = {"Polonnaruwa":["Medirigiriya","Hingurakgoda","Kaduruwel
 window.HOYA_PRICING = {business:500, jobs:300, sales:500, ad_3x3:800};
 window.HOYA_COMMISSION = {admin:250, moderator:250};
 window.HOYA_BANK = {bank:"BOC", name:"Nimantha Sandaruwan", account:"86837138"};
-window.notifyUnpaidViaWhatsApp = function(phone, businessName){ var clean=String(phone||"").replace(/[^0-9]/g,""); if(clean.startsWith("0")) clean="94"+clean.slice(1); if(!clean){alert("WhatsApp Number එක නැහැ");return;} var msg="HOYA - Payment දැනුම් දීම\n\n"+(businessName||"ඔබේ සේවාව")+" සඳහා මේ මාසයේ Payment එක තාම ලැබුණේ නැහැ.\nකරුණාකර 28ට කලින් Rs.500 ගෙවලා Slip එක Upload කරන්න.\nBOC - Nimantha Sandaruwan - 86837138\n- HOYA Admin"; window.open("https://wa.me/"+clean+"?text="+encodeURIComponent(msg),"_blank"); };
+window.notifyUnpaidViaWhatsApp = function(phone, businessName){ var clean=String(phone||"").replace(/[^0-9]/g,""); if(clean.startsWith("0")) clean="94"+clean.slice(1); if(!clean){alert("WhatsApp Number එක නැහැ");return;} var msg="HOYA - Payment දැනුම් දීම\n\n"+(businessName||"ඔබේ සේවාව")+" සඳහා මේ මාසයේ Payment එක තාම ලැබුණේ නැහැ.\nකරුණාකර නොමිලේ කාලය අවසන් වීමට පෙර Rs.500 ගෙවලා Slip එක Upload කරන්න.\nBOC - Nimantha Sandaruwan - 86837138\n- HOYA Admin"; window.open("https://wa.me/"+clean+"?text="+encodeURIComponent(msg),"_blank"); };
 document.getElementById('hoyaMenuBtn')?.addEventListener('click', function(){ document.getElementById('hoyaMenuDrawer').style.display='block'; });
 document.getElementById('hoyaMenuClose')?.addEventListener('click', function(){ document.getElementById('hoyaMenuDrawer').style.display='none'; });
 document.getElementById('hoyaDistrictSelect')?.addEventListener('change', function(){ var areas=(window.HOYA_DISTRICTS||{})[this.value]||[]; var sel=document.getElementById('hoyaAreaSelect'); sel.innerHTML='<option value="">ප්‍රදේශය තෝරන්න ('+areas.length+'ක්)</option>'+areas.map(function(a){return '<option>'+a+'</option>';}).join(''); });
